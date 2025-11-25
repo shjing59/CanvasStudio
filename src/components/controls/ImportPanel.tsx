@@ -35,6 +35,21 @@ export const ImportPanel = () => {
     noKeyboard: true,
   })
 
+  const handleLoadSample = useCallback(async () => {
+    try {
+      setError(null)
+      const response = await fetch('/sample.jpg')
+      if (!response.ok) {
+        throw new Error('Sample image not found. Please upload manually.')
+      }
+      const blob = await response.blob()
+      const file = new File([blob], 'sample.jpg', { type: blob.type || 'image/jpeg' })
+      await loadImage(file)
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }, [loadImage])
+
   return (
     <section className="space-y-3 rounded-2xl bg-canvas-control/60 p-4 text-sm text-slate-200 shadow-inner shadow-black/20">
       <header className="flex items-center justify-between">
@@ -66,6 +81,13 @@ export const ImportPanel = () => {
           <p className="text-xs text-slate-400 mt-1">Reads complete EXIF metadata</p>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={handleLoadSample}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/30 hover:bg-white/10"
+      >
+        Load sample image
+      </button>
       {image && (
         <div className="rounded-xl bg-white/5 p-3 text-xs text-slate-300">
           <p className="font-semibold text-white">{image.fileName}</p>

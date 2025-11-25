@@ -12,7 +12,11 @@ interface SceneParams {
   visibleCenterOffset?: number
 }
 
-// Shared renderer so the preview canvas and the export pipeline stay pixel identical.
+/**
+ * Render the canvas scene (canvas background + image).
+ * This is used for both preview and export - workspace is never included.
+ * Uses the same transform logic as ImageLayer: translate(x, y) scale(scale) with center origin.
+ */
 export function renderScene({
   ctx,
   width,
@@ -22,6 +26,7 @@ export function renderScene({
   borders,
   image,
 }: SceneParams) {
+  // Fill canvas background (white by default)
   ctx.save()
   ctx.fillStyle = background
   ctx.fillRect(0, 0, width, height)
@@ -31,20 +36,21 @@ export function renderScene({
     return
   }
 
-  const visibleHeight = Math.max(16, height - borders.top - borders.bottom)
-  const centerY = borders.top + visibleHeight / 2
+  // Use exact natural dimensions
+  const imgNaturalWidth = image.width
+  const imgNaturalHeight = image.height
 
-  const drawWidth = image.width * transform.scale
-  const drawHeight = image.height * transform.scale
-
+  // Calculate position (centered in canvas, with transform offset)
   const originX = width / 2 + transform.x
-  const originY = centerY + transform.y
+  const originY = height / 2 + transform.y
 
+  // Draw image with transform: translate(x, y) scale(scale)
   ctx.save()
   ctx.translate(originX, originY)
+  ctx.scale(transform.scale, transform.scale)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(image.element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+  ctx.drawImage(image.element, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
   ctx.restore()
 }
 

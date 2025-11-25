@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { DEFAULT_RATIO_ID, findRatioValue } from '../lib/canvas/ratios'
-import { DEFAULT_BASE_WIDTH, MAX_SCALE, clamp, computeCoverScale, convertBorderToBasePx } from '../lib/canvas/math'
+import { DEFAULT_BASE_WIDTH, MAX_SCALE, clamp, computeCoverScale, computeContainScale, convertBorderToBasePx } from '../lib/canvas/math'
 import { loadImageFromFile } from '../lib/image/loadImage'
 import type {
   BorderSetting,
@@ -18,6 +18,8 @@ export interface CanvasStoreState {
   ratioId: RatioOptionId
   customRatio: { width: number; height: number }
   transform: TransformState
+  imageScale: { width: number; height: number }
+  keepAspectRatio: boolean
   borders: Record<BorderKey, BorderSetting>
   centerSnap: boolean
   autoFit: boolean
@@ -28,6 +30,8 @@ export interface CanvasStoreState {
   setRatio: (id: RatioOptionId) => void
   setCustomRatio: (payload: { width: number; height: number }) => void
   updateTransform: (transform: Partial<TransformState>) => void
+  setImageScale: (scale: Partial<{ width: number; height: number }>) => void
+  setKeepAspectRatio: (value: boolean) => void
   nudgePosition: (delta: { x: number; y: number }) => void
   adjustScale: (factor: number) => void
   setScale: (value: number) => void
@@ -35,6 +39,7 @@ export interface CanvasStoreState {
   resetTransform: () => void
   setBorders: (payload: Partial<Record<BorderKey, BorderSetting>>) => void
   setAutoFit: (value: boolean) => void
+  fitImageToCanvas: () => void
   setBackground: (value: string) => void
   setPreviewSize: (size: { width: number; height: number }) => void
   setExportOptions: (options: Partial<ExportOptions>) => void
@@ -42,12 +47,15 @@ export interface CanvasStoreState {
 }
 
 const initialBorder: BorderSetting = { value: 0, unit: 'px' }
+const MIN_SCALE_VALUE = 0.05
 
 // Centralized state for every canvas + export concern so UI remains declarative.
 export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   ratioId: DEFAULT_RATIO_ID,
   customRatio: { width: 4, height: 5 },
   transform: { x: 0, y: 0, scale: 1 },
+  imageScale: { width: 0, height: 0 },
+  keepAspectRatio: true,
   borders: {
     top: { ...initialBorder },
     bottom: { ...initialBorder },
@@ -59,8 +67,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   exportOptions: { format: 'png', quality: 1, mode: 'original' },
   async loadImage(file: File) {
     const image = await loadImageFromFile(file)
-    set({ image })
-    ensureValidState({ fit: true })
+    // Reset transform - ImageLayer will initialize scale when canvas dimensions are available
+    set({ 
+      image,
+      transform: { x: 0, y: 0, scale: 1 },
+      imageScale: { width: image.width, height: image.height },
+      keepAspectRatio: true,
+    })
   },
   setRatio(id) {
     set({ ratioId: id })
@@ -86,6 +99,17 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       return { transform: snapped }
     })
   },
+  setImageScale(scale) {
+    set((state) => ({
+      imageScale: {
+        width: scale.width ?? state.imageScale.width,
+        height: scale.height ?? state.imageScale.height,
+      },
+    }))
+  },
+  setKeepAspectRatio(value) {
+    set({ keepAspectRatio: value })
+  },
   nudgePosition(delta) {
     set((state) => {
       const moved = {
@@ -105,15 +129,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
   adjustScale(factor) {
     set((state) => {
-      const minScale = getMinScale(state)
-      const nextScale = clamp(state.transform.scale * factor, minScale, MAX_SCALE)
+      const nextScale = clamp(state.transform.scale * factor, MIN_SCALE_VALUE, MAX_SCALE)
       return { transform: { ...state.transform, scale: nextScale } }
     })
   },
   setScale(value) {
     set((state) => {
-      const minScale = getMinScale(state)
-      return { transform: { ...state.transform, scale: clamp(value, minScale, MAX_SCALE) } }
+      return { transform: { ...state.transform, scale: clamp(value, MIN_SCALE_VALUE, MAX_SCALE) } }
     })
   },
   setCenterSnap(value) {
@@ -121,12 +143,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
   resetTransform() {
     set((state) => {
-      const minScale = getMinScale(state)
+      const minScale = getFitScaleFromPreview(state)
+      const targetScale = minScale ?? MIN_SCALE_VALUE
       return {
         transform: {
           x: 0,
           y: 0,
-          scale: Math.max(1, minScale),
+          scale: Math.max(targetScale, MIN_SCALE_VALUE),
         },
       }
     })
@@ -142,7 +165,23 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
   setAutoFit(value) {
     set({ autoFit: value })
-    ensureValidState({ fit: value })
+    if (value) {
+      get().fitImageToCanvas()
+    }
+  },
+  fitImageToCanvas() {
+    const state = get()
+    const fitScale = getFitScaleFromPreview(state)
+    if (!fitScale) {
+      return
+    }
+    set({
+      transform: {
+        x: 0,
+        y: 0,
+        scale: Math.max(fitScale, MIN_SCALE_VALUE),
+      },
+    })
   },
   setBackground(value) {
     set({ background: value })
@@ -188,15 +227,20 @@ function deriveDimensions(state: CanvasStoreState) {
 }
 
 function getMinScale(state: CanvasStoreState): number {
-  if (!state.image) return 1
+  if (!state.image) return MIN_SCALE_VALUE
   const { baseWidth, baseHeight } = deriveDimensions(state)
-  const topPx = convertBorderToBasePx(state.borders.top, baseHeight)
-  const bottomPx = convertBorderToBasePx(state.borders.bottom, baseHeight)
-  return computeCoverScale(state.image, baseWidth, baseHeight, topPx, bottomPx)
+  return computeContainScale(state.image, baseWidth, baseHeight)
+}
+
+function getFitScaleFromPreview(state: CanvasStoreState): number | null {
+  if (!state.image || !state.previewSize) return null
+  const { width: canvasWidth, height: canvasHeight } = state.previewSize
+  if (!canvasWidth || !canvasHeight) return null
+  return Math.min(canvasWidth / state.image.width, canvasHeight / state.image.height)
 }
 
 // Guarantees that scale & alignment respect the current ratio/border constraints.
-function ensureValidState({ fit }: { fit: boolean }) {
+function ensureValidState({ fit, useContain = false }: { fit: boolean; useContain?: boolean }) {
   const state = useCanvasStore.getState()
   const image = state.image
   if (!image) {
@@ -204,19 +248,29 @@ function ensureValidState({ fit }: { fit: boolean }) {
   }
 
   const { baseWidth, baseHeight } = deriveDimensions(state)
-  const topPx = convertBorderToBasePx(state.borders.top, baseHeight)
-  const bottomPx = convertBorderToBasePx(state.borders.bottom, baseHeight)
-  const minScale = computeCoverScale(image, baseWidth, baseHeight, topPx, bottomPx)
+  
+  let initialScale: number
+  if (useContain) {
+    // Use contain logic: scale image to fit inside canvas
+    initialScale = computeContainScale(image, baseWidth, baseHeight)
+  } else {
+    // Use cover logic: scale image to cover canvas (with borders)
+    const topPx = convertBorderToBasePx(state.borders.top, baseHeight)
+    const bottomPx = convertBorderToBasePx(state.borders.bottom, baseHeight)
+    initialScale = computeCoverScale(image, baseWidth, baseHeight, topPx, bottomPx)
+  }
 
   useCanvasStore.setState((current) => {
-    const nextScale = Math.max(minScale, current.transform.scale)
+    const nextScale = useContain 
+      ? initialScale 
+      : Math.max(initialScale, current.transform.scale)
     const nextTransform = {
       ...current.transform,
       scale: nextScale,
     }
     if (fit) {
       nextTransform.x = 0
-      nextTransform.y = (topPx - bottomPx) / 2
+      nextTransform.y = 0
     }
     return { transform: nextTransform }
   })

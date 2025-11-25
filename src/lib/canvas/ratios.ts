@@ -10,7 +10,7 @@ export const RATIO_PRESETS: RatioOption[] = [
   { id: 'custom', label: 'Custom', value: null, description: 'User defined' },
 ]
 
-export const DEFAULT_RATIO_ID: RatioOptionId = '1:1'
+export const DEFAULT_RATIO_ID: RatioOptionId = '3:2'
 
 export function findRatioValue(
   id: RatioOptionId,
