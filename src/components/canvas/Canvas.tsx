@@ -1,8 +1,9 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react'
+import { useMemo, useState, useEffect, useRef, type ReactNode, forwardRef, useImperativeHandle } from 'react'
 
 interface CanvasProps {
   aspectRatio: number // width / height
   children: ReactNode
+  onSizeChange?: (size: { width: number; height: number }) => void
 }
 
 const MIN_CANVAS_WIDTH = 240
@@ -13,13 +14,24 @@ const MAX_CANVAS_WIDTH = 1400
  * Keeps the selected aspect ratio, responsive to screen but maintains aspect ratio.
  * Positioned at the center of the workspace.
  */
-export const Canvas = ({ aspectRatio, children }: CanvasProps) => {
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
+export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, children, onSizeChange }, ref) => {
+  // Initialize with actual window size if available, otherwise use defaults
+  const [windowSize, setWindowSize] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return { width: window.innerWidth, height: window.innerHeight }
+    }
+    return { width: 0, height: 0 }
+  })
+  const canvasRef = useRef<HTMLDivElement>(null)
+
+  // Expose the ref
+  useImperativeHandle(ref, () => canvasRef.current as HTMLDivElement)
 
   useEffect(() => {
     const updateSize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     }
+    // Update immediately in case window size changed
     updateSize()
     window.addEventListener('resize', updateSize)
     return () => window.removeEventListener('resize', updateSize)
@@ -49,8 +61,16 @@ export const Canvas = ({ aspectRatio, children }: CanvasProps) => {
     return { width, height }
   }, [windowSize.width, windowSize.height, aspectRatio])
 
+  // Notify parent of size changes
+  useEffect(() => {
+    if (onSizeChange) {
+      onSizeChange(canvasSize)
+    }
+  }, [canvasSize, onSizeChange])
+
   return (
     <div
+      ref={canvasRef}
       className="relative bg-white shadow-2xl"
       style={{
         width: canvasSize.width,
@@ -60,5 +80,5 @@ export const Canvas = ({ aspectRatio, children }: CanvasProps) => {
       {children}
     </div>
   )
-}
+})
 

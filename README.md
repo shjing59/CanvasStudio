@@ -28,6 +28,13 @@ yarn build
 
 The dev server runs on `http://localhost:5173` by default.
 
+## Image Controls
+- Import any image; it auto-fits inside the canvas without cropping.
+- Use the Position & Scale panel to:
+  - Edit width/height (px) with optional aspect lock.
+  - Adjust scale relative to the fitted size (`-100%` to shrink, `+100%` to zoom).
+  - Recenter or Auto Fit at any time to snap back to contain.
+
 ## Screenshots
 
 > _Add final UI captures or GIFs here once design reviews complete._

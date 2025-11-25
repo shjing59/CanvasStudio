@@ -17,38 +17,23 @@ export const CanvasStage = () => {
   const customRatio = useCanvasStore((state) => state.customRatio)
   const setPreviewSize = useCanvasStore((state) => state.setPreviewSize)
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null)
-  const canvasContainerRef = useRef<HTMLDivElement>(null)
 
   // Calculate aspect ratio
   const aspectRatio = findRatioValue(ratioId, { custom: customRatio, image })
 
-  // Track canvas size for export
-  useEffect(() => {
-    if (!canvasContainerRef.current) return
-
-    const updateSize = () => {
-      const rect = canvasContainerRef.current?.getBoundingClientRect()
-      if (rect && rect.width > 0 && rect.height > 0) {
-        setCanvasSize({ width: rect.width, height: rect.height })
-        setPreviewSize({ width: rect.width, height: rect.height })
-      }
-    }
-
-    updateSize()
-    const resizeObserver = new ResizeObserver(updateSize)
-    if (canvasContainerRef.current) {
-      resizeObserver.observe(canvasContainerRef.current)
-    }
-
-    return () => {
-      resizeObserver.disconnect()
-    }
-  }, [setPreviewSize, aspectRatio])
+  // Handle canvas size changes from Canvas component
+  const handleCanvasSizeChange = (size: { width: number; height: number }) => {
+    setCanvasSize(size)
+    setPreviewSize(size)
+  }
 
   return (
     <Workspace>
-      <Canvas aspectRatio={aspectRatio}>
-        <div ref={canvasContainerRef} className="relative w-full h-full">
+      <Canvas aspectRatio={aspectRatio} onSizeChange={handleCanvasSizeChange}>
+        <div 
+          className="relative w-full h-full"
+          style={{ pointerEvents: 'auto' }}
+        >
           {image && canvasSize && (
             <ImageLayer
               image={image}
@@ -57,7 +42,7 @@ export const CanvasStage = () => {
             />
           )}
           {!image && (
-            <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400 pointer-events-none">
               Import an image to begin
             </div>
           )}

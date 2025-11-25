@@ -13,9 +13,15 @@ CanvasStudio is a production-ready Vite + React (TS) application that recreates 
   - Original ratio (enabled once an image is present).
   - Custom ratio via width/height inputs; switching is instant and non-destructive.
 - **Positioning + scale**
-  - Drag (pointer or touch) to reposition.
-  - Scroll wheel, Shift + drag, or pinch gestures to scale while maintaining aspect ratio.
-  - Center-snap toggle, Auto Fit toggle, and Reset (or `R`) shortcut.
+  - **Initial image import**: Images are automatically fitted to canvas using contain logic (no cropping). They start centered with the fitted scale applied.
+  - **Manual controls**:
+    - Width & height inputs (px) update the base image dimensions; aspect lock ensures proportional edits.
+    - Scale slider now represents `-100% … 0 … +100%` relative to the fitted size (negative = shrink, positive = zoom).
+    - Drag (pointer events) to reposition, scroll wheel to zoom (cursor-centered), Shift + drag for centered zoom.
+  - **Transform system**: Uses CSS `transform: translate(x, y) scale(scale)` with `transform-origin: center center`.
+    - Image uses the user-defined dimensions (defaults to natural pixels); transform scale applies on top.
+    - Auto Fit button recomputes the contain scale and recenters instantly; Recenter snaps translation back to `0,0`.
+    - Center Snap toggles translation snapping near center; Reset (`R`) restores contain scale and center.
 - **Adjustable top/bottom borders**
   - Independent height inputs with px/% units.
   - Auto-calculates the minimum scale so the visible portion always remains covered.
@@ -65,11 +71,13 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 ## D. Architecture Decisions
 
 1. **Zustand for state** – Lightweight global store keeps gesture handlers and UI controls in sync without prop drilling.
-2. **Canvas base coordinate system** – Transform state is stored relative to the original image resolution so exports and preview remain pixel-identical.
-3. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
-4. **Modular controls** – Each requirement (import, ratio, transform, borders, export) lives in its own component to keep future additions isolated.
-5. **Gesture layer via `@use-gesture/react`** – One binding handles drag, pinch, wheel, and modifier gestures across desktop/mobile.
-6. **Documentation-driven** – This file plus README act as living specs so future contributors know exactly how to extend the system.
+2. **Three-layer architecture** – Workspace (checkerboard background, never exported) → Canvas (white rectangle, export area) → ImageLayer (user-imported image, draggable/scalable).
+3. **Image transform system** – Uses CSS `transform: translate(x, y) scale(scale)` with `transform-origin: center center` for consistent centering. Image uses exact natural pixel dimensions; all resizing handled by scale().
+4. **Initial image scaling** – Photoshop/Lightroom-style: images larger than canvas scale down to fit; images smaller than canvas remain at 100% scale (never auto-zoomed). Always centered on import.
+5. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
+6. **Modular controls** – Each requirement (import, ratio, transform, borders, export) lives in its own component to keep future additions isolated.
+7. **Pointer-based gestures** – Direct pointer event handling for drag/zoom provides precise control and prevents parent containers from consuming events.
+8. **Documentation-driven** – This file plus README act as living specs so future contributors know exactly how to extend the system.
 
 ## E. Roadmap
 

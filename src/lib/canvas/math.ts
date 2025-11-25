@@ -37,6 +37,8 @@ export function computeContainScale(
   canvasWidth: number,
   canvasHeight: number
 ): number {
+  // Calculate scale needed to fit image in canvas while maintaining aspect ratio
+  // Always scale down to fit - use the smaller of the two scale factors
   const scaleByWidth = canvasWidth / image.width
   const scaleByHeight = canvasHeight / image.height
   return Math.min(scaleByWidth, scaleByHeight)
