@@ -6,7 +6,7 @@ import { TransformPanel } from './TransformPanel'
 
 // High-level shell that orders the individual control groups.
 export const ControlPanel = () => (
-  <aside className="flex w-full flex-col gap-4 md:max-w-md">
+  <aside className="flex w-full flex-col gap-4">
     <ImportPanel />
     <RatioPanel />
     <TransformPanel />

@@ -144,12 +144,22 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   resetTransform() {
     set((state) => {
       const minScale = getFitScaleFromPreview(state)
-      const targetScale = minScale ?? MIN_SCALE_VALUE
+      if (minScale) {
+        // Default scale is -5% relative to fit scale
+        const defaultScale = minScale * 0.95
+        return {
+          transform: {
+            x: 0,
+            y: 0,
+            scale: Math.max(defaultScale, MIN_SCALE_VALUE),
+          },
+        }
+      }
       return {
         transform: {
           x: 0,
           y: 0,
-          scale: Math.max(targetScale, MIN_SCALE_VALUE),
+          scale: MIN_SCALE_VALUE,
         },
       }
     })
@@ -175,11 +185,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     if (!fitScale) {
       return
     }
+    // Default scale is -5% relative to fit scale
+    const defaultScale = fitScale * 0.95
     set({
       transform: {
         x: 0,
         y: 0,
-        scale: Math.max(fitScale, MIN_SCALE_VALUE),
+        scale: Math.max(defaultScale, MIN_SCALE_VALUE),
       },
     })
   },
@@ -261,9 +273,16 @@ function ensureValidState({ fit, useContain = false }: { fit: boolean; useContai
   }
 
   useCanvasStore.setState((current) => {
-    const nextScale = useContain 
-      ? initialScale 
-      : Math.max(initialScale, current.transform.scale)
+    let nextScale: number
+    if (useContain) {
+      // Default scale is -5% relative to fit scale
+      nextScale = initialScale * 0.95
+    } else {
+      // When fitting, apply -5% default; otherwise preserve current scale if larger
+      nextScale = fit 
+        ? initialScale * 0.95
+        : Math.max(initialScale, current.transform.scale)
+    }
     const nextTransform = {
       ...current.transform,
       scale: nextScale,

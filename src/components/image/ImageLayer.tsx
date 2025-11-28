@@ -63,7 +63,9 @@ export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps
 
       initialFitScale.current = scale
       hasInitialized.current = true
-      updateTransform({ scale, x: 0, y: 0 })
+      // Default scale is -5% relative to fit scale
+      const defaultScale = scale * 0.95
+      updateTransform({ scale: defaultScale, x: 0, y: 0 })
     }
   }, [canvasWidth, canvasHeight, imgNaturalWidth, imgNaturalHeight, updateTransform])
 
