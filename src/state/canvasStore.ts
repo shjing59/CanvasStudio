@@ -199,7 +199,33 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     set({ background: value })
   },
   setPreviewSize(size) {
+    const state = get()
+    const oldSize = state.previewSize
+    
     set({ previewSize: size })
+    
+    // Check if size changed significantly (more than just a small window resize)
+    // This helps catch ratio changes where the canvas dimensions change substantially
+    const sizeChangedSignificantly = oldSize && (
+      Math.abs(size.width - oldSize.width) > 10 || 
+      Math.abs(size.height - oldSize.height) > 10
+    )
+    
+    // If size changed significantly and we have an image, refit it
+    // This ensures the image is properly positioned after ratio changes
+    if (sizeChangedSignificantly && state.image) {
+      const fitScale = getFitScaleFromPreview({ ...state, previewSize: size })
+      if (fitScale !== null) {
+        const defaultScale = fitScale * 0.95
+        set({
+          transform: {
+            x: 0,
+            y: 0,
+            scale: Math.max(defaultScale, MIN_SCALE_VALUE),
+          },
+        })
+      }
+    }
   },
   setExportOptions(options) {
     set((state) => ({
@@ -259,6 +285,25 @@ function ensureValidState({ fit, useContain = false }: { fit: boolean; useContai
     return
   }
 
+  // When fitting, prefer using actual preview canvas size if available
+  // This ensures the scale matches what the user sees on screen
+  if (fit && state.previewSize) {
+    const fitScale = getFitScaleFromPreview(state)
+    if (fitScale !== null) {
+      // Default scale is -5% relative to fit scale
+      const defaultScale = fitScale * 0.95
+      useCanvasStore.setState({
+        transform: {
+          x: 0,
+          y: 0,
+          scale: Math.max(defaultScale, MIN_SCALE_VALUE),
+        },
+      })
+      return
+    }
+  }
+
+  // Fall back to theoretical dimensions if previewSize is not available
   const { baseWidth, baseHeight } = deriveDimensions(state)
   
   let initialScale: number
