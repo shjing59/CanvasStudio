@@ -36,7 +36,6 @@ export interface CanvasDimensions {
 export interface ExportOptions {
   format: 'png' | 'jpeg'
   quality: number // 0 - 1
-  mode: 'original' | 'canvas'
 }
 
 export interface CanvasSnapshot {

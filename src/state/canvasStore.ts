@@ -18,11 +18,8 @@ export interface CanvasStoreState {
   ratioId: RatioOptionId
   customRatio: { width: number; height: number }
   transform: TransformState
-  imageScale: { width: number; height: number }
-  keepAspectRatio: boolean
   borders: Record<BorderKey, BorderSetting>
   centerSnap: boolean
-  autoFit: boolean
   background: string
   previewSize: { width: number; height: number } | null
   exportOptions: ExportOptions
@@ -30,15 +27,12 @@ export interface CanvasStoreState {
   setRatio: (id: RatioOptionId) => void
   setCustomRatio: (payload: { width: number; height: number }) => void
   updateTransform: (transform: Partial<TransformState>) => void
-  setImageScale: (scale: Partial<{ width: number; height: number }>) => void
-  setKeepAspectRatio: (value: boolean) => void
   nudgePosition: (delta: { x: number; y: number }) => void
   adjustScale: (factor: number) => void
   setScale: (value: number) => void
   setCenterSnap: (value: boolean) => void
   resetTransform: () => void
   setBorders: (payload: Partial<Record<BorderKey, BorderSetting>>) => void
-  setAutoFit: (value: boolean) => void
   fitImageToCanvas: () => void
   setBackground: (value: string) => void
   setPreviewSize: (size: { width: number; height: number }) => void
@@ -54,25 +48,20 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   ratioId: DEFAULT_RATIO_ID,
   customRatio: { width: 4, height: 5 },
   transform: { x: 0, y: 0, scale: 1 },
-  imageScale: { width: 0, height: 0 },
-  keepAspectRatio: true,
   borders: {
     top: { ...initialBorder },
     bottom: { ...initialBorder },
   },
   centerSnap: true,
-  autoFit: false,
   background: '#ffffff',
   previewSize: null,
-  exportOptions: { format: 'png', quality: 1, mode: 'canvas' },
+  exportOptions: { format: 'png', quality: 1 },
   async loadImage(file: File) {
     const image = await loadImageFromFile(file)
     // Reset transform - ImageLayer will initialize scale when canvas dimensions are available
     set({ 
       image,
       transform: { x: 0, y: 0, scale: 1 },
-      imageScale: { width: image.width, height: image.height },
-      keepAspectRatio: true,
     })
   },
   setRatio(id) {
@@ -98,17 +87,6 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
         : merged
       return { transform: snapped }
     })
-  },
-  setImageScale(scale) {
-    set((state) => ({
-      imageScale: {
-        width: scale.width ?? state.imageScale.width,
-        height: scale.height ?? state.imageScale.height,
-      },
-    }))
-  },
-  setKeepAspectRatio(value) {
-    set({ keepAspectRatio: value })
   },
   nudgePosition(delta) {
     set((state) => {
@@ -171,13 +149,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
         ...payload,
       },
     }))
-    ensureValidState({ fit: get().autoFit })
-  },
-  setAutoFit(value) {
-    set({ autoFit: value })
-    if (value) {
-      get().fitImageToCanvas()
-    }
+    ensureValidState({ fit: false })
   },
   fitImageToCanvas() {
     const state = get()

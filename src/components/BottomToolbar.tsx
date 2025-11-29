@@ -9,8 +9,6 @@ export const BottomToolbar = () => {
   const image = useCanvasStore((state) => state.image)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
-  const autoFit = useCanvasStore((state) => state.autoFit)
-  const setAutoFit = useCanvasStore((state) => state.setAutoFit)
   const { exportImage, isExporting } = useExportImage()
   const [error, setError] = useState<string | null>(null)
 
@@ -63,7 +61,6 @@ export const BottomToolbar = () => {
         active={centerSnap}
         onClick={() => setCenterSnap(!centerSnap)}
       />
-      <ToolbarToggle label="Auto Fit" active={autoFit} onClick={() => setAutoFit(!autoFit)} />
 
       {/* Export Button */}
       <button

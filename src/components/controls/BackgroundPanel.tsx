@@ -1,4 +1,7 @@
 import { useCanvasStore } from '../../state/canvasStore'
+import { PanelSection } from '../ui/PanelSection'
+import { PresetButtons } from '../ui/PresetButtons'
+import { BACKGROUND_COLORS } from '../../constants/presets'
 
 // Panel for selecting canvas background color
 export const BackgroundPanel = () => {
@@ -6,11 +9,10 @@ export const BackgroundPanel = () => {
   const setBackground = useCanvasStore((state) => state.setBackground)
 
   return (
-    <section className="space-y-3 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
-      <header>
-        <p className="text-base font-semibold text-white">Canvas Background</p>
-        <p className="text-xs text-slate-400">Choose the background color for your canvas</p>
-      </header>
+    <PanelSection 
+      title="Canvas Background" 
+      description="Choose the background color for your canvas"
+    >
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2 text-xs">
           <span className="text-slate-400">Color</span>
@@ -32,28 +34,11 @@ export const BackgroundPanel = () => {
           placeholder="#ffffff"
         />
       </div>
-      <div className="flex flex-wrap gap-2">
-        {[
-          { label: 'White', value: '#ffffff' },
-          { label: 'Black', value: '#000000' },
-          { label: 'Light Gray', value: '#f5f5f5' },
-          { label: 'Dark Gray', value: '#333333' },
-        ].map((preset) => (
-          <button
-            key={preset.value}
-            type="button"
-            onClick={() => setBackground(preset.value)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-              background === preset.value
-                ? 'border-white bg-white/10 text-white'
-                : 'border-white/10 text-slate-400 hover:border-white/20'
-            }`}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
-    </section>
+      <PresetButtons
+        presets={BACKGROUND_COLORS}
+        currentValue={background}
+        onChange={setBackground}
+      />
+    </PanelSection>
   )
 }
-

@@ -1,13 +1,10 @@
 import { useMemo } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
+import { PanelSection } from '../ui/PanelSection'
+import { PresetButtons } from '../ui/PresetButtons'
+import { QUALITY_PRESETS } from '../../constants/presets'
 
-const QUALITY_PRESETS = [
-  { label: '100%', value: 1 },
-  { label: '90%', value: 0.9 },
-  { label: '80%', value: 0.8 },
-]
-
-// Export settings panel - configuration only, actual export is in TopToolbar
+// Export settings panel - configuration only, actual export is in BottomToolbar
 export const ExportSettingsPanel = () => {
   const exportOptions = useCanvasStore((state) => state.exportOptions)
   const setExportOptions = useCanvasStore((state) => state.setExportOptions)
@@ -19,11 +16,10 @@ export const ExportSettingsPanel = () => {
   )
 
   return (
-    <section className="space-y-4 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
-      <header>
-        <p className="text-base font-semibold text-white">Export Settings</p>
-        <p className="text-xs text-slate-400">Configure export format and quality</p>
-      </header>
+    <PanelSection 
+      title="Export Settings" 
+      description="Configure export format and quality"
+    >
       <div className="space-y-2 rounded-2xl border border-white/10 p-3 text-xs">
         <legend className="text-xs uppercase tracking-wide text-slate-400 mb-2">
           Format
@@ -46,23 +42,12 @@ export const ExportSettingsPanel = () => {
         </div>
       </div>
       <div className="space-y-3 rounded-2xl border border-white/10 p-3 text-xs">
-        <div className="flex flex-wrap gap-2">
-          {QUALITY_PRESETS.map((preset) => (
-            <button
-              key={preset.value}
-              type="button"
-              onClick={() => setExportOptions({ quality: preset.value })}
-              className={`rounded-full border px-3 py-1 font-semibold ${
-                exportOptions.quality === preset.value
-                  ? 'border-white bg-white/10 text-white'
-                  : 'border-white/10 text-slate-400'
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
-          <span className="self-center text-slate-500">or fine tune</span>
-        </div>
+        <PresetButtons
+          presets={QUALITY_PRESETS}
+          currentValue={exportOptions.quality}
+          onChange={(quality) => setExportOptions({ quality })}
+        />
+        <span className="block text-center text-slate-500">or fine tune</span>
         <label className="flex flex-col gap-1">
           <span>Custom quality: {qualityLabel}%</span>
           <input
@@ -80,7 +65,6 @@ export const ExportSettingsPanel = () => {
           Import an image to enable export.
         </p>
       )}
-    </section>
+    </PanelSection>
   )
 }
-

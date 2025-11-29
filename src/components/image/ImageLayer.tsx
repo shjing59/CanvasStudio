@@ -25,15 +25,14 @@ export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps
 
   // Use the HTMLImageElement provided by the store (already loaded during import)
   const imgElement = image.element
-  const userScale = useCanvasStore((state) => state.imageScale)
   const imgNaturalWidth = useMemo(() => {
     if (!imgElement) return image.width || 0
-    return userScale.width || imgElement.naturalWidth || image.width || 0
-  }, [imgElement, image.width, userScale.width])
+    return imgElement.naturalWidth || image.width || 0
+  }, [imgElement, image.width])
   const imgNaturalHeight = useMemo(() => {
     if (!imgElement) return image.height || 0
-    return userScale.height || imgElement.naturalHeight || image.height || 0
-  }, [imgElement, image.height, userScale.height])
+    return imgElement.naturalHeight || image.height || 0
+  }, [imgElement, image.height])
 
   // Reset initialization when a new image is loaded
   useEffect(() => {

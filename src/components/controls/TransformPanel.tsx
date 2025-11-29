@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
+import { PanelSection } from '../ui/PanelSection'
+import { ToggleButton } from '../ui/ToggleButton'
 
 // Gives fine-grained control over scale toggles + center snapping + reset flows.
 export const TransformPanel = () => {
@@ -11,10 +13,6 @@ export const TransformPanel = () => {
   const previewSize = useCanvasStore((state) => state.previewSize)
   const image = useCanvasStore((state) => state.image)
   const updateTransform = useCanvasStore((state) => state.updateTransform)
-  const imageScale = useCanvasStore((state) => state.imageScale)
-  const setImageScale = useCanvasStore((state) => state.setImageScale)
-  const keepAspectRatio = useCanvasStore((state) => state.keepAspectRatio)
-  const setKeepAspectRatio = useCanvasStore((state) => state.setKeepAspectRatio)
   const fitImageToCanvas = useCanvasStore((state) => state.fitImageToCanvas)
 
   const fitScale = useMemo(() => {
@@ -52,39 +50,11 @@ export const TransformPanel = () => {
     updateTransform({ [axis]: (value / 100) * half })
   }
 
-  const naturalWidth = image?.width || imageScale.width || 0
-  const naturalHeight = image?.height || imageScale.height || 0
-  const currentWidth = imageScale.width || naturalWidth
-  const currentHeight = imageScale.height || naturalHeight
-
-  const handleWidthChange = (value: string) => {
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed) || parsed <= 0) return
-    let nextHeight = currentHeight
-    if (keepAspectRatio && naturalWidth > 0) {
-      nextHeight = Math.round((parsed / naturalWidth) * naturalHeight)
-    }
-    setImageScale({ width: parsed, height: nextHeight })
-  }
-
-  const handleHeightChange = (value: string) => {
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed) || parsed <= 0) return
-    let nextWidth = currentWidth
-    if (keepAspectRatio && naturalHeight > 0) {
-      nextWidth = Math.round((parsed / naturalHeight) * naturalWidth)
-    }
-    setImageScale({ height: parsed, width: nextWidth })
-  }
-
   return (
-    <section className="space-y-4 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
-      <header>
-        <p className="text-base font-semibold text-white">2. Position & Scale</p>
-        <p className="text-xs text-slate-400">
-          Drag to move. Wheel, pinch, or Shift + Drag to scale.
-        </p>
-      </header>
+    <PanelSection 
+      title="2. Position & Scale" 
+      description="Drag to move. Wheel, pinch, or Shift + Drag to scale."
+    >
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>Scale</span>
@@ -103,38 +73,6 @@ export const TransformPanel = () => {
           -100% keeps the image fully fitting inside the canvas, 0% equals the fitted size, positive
           values zoom in.
         </p>
-      </div>
-      <div className="space-y-2 rounded-2xl border border-white/10 p-3">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Custom Width</span>
-          <span className="text-white">{currentWidth}px</span>
-        </div>
-        <input
-          type="number"
-          className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white"
-          value={currentWidth}
-          min={1}
-          onChange={(event) => handleWidthChange(event.target.value)}
-        />
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Custom Height</span>
-          <span className="text-white">{currentHeight}px</span>
-        </div>
-        <input
-          type="number"
-          className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white"
-          value={currentHeight}
-          min={1}
-          onChange={(event) => handleHeightChange(event.target.value)}
-        />
-        <label className="flex items-center gap-2 text-xs text-slate-400">
-          <input
-            type="checkbox"
-            checked={keepAspectRatio}
-            onChange={(event) => setKeepAspectRatio(event.target.checked)}
-          />
-          Lock aspect ratio
-        </label>
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400">
@@ -210,27 +148,6 @@ export const TransformPanel = () => {
           Reset
         </button>
       </div>
-    </section>
+    </PanelSection>
   )
 }
-
-const ToggleButton = ({
-  label,
-  active,
-  onClick,
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`rounded-2xl border px-3 py-2 font-medium transition ${
-      active ? 'border-white bg-white/10 text-white' : 'border-white/10 text-slate-300'
-    }`}
-  >
-    {label}
-  </button>
-)
-
