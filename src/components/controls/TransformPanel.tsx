@@ -78,9 +78,9 @@ export const TransformPanel = () => {
   }
 
   return (
-    <section className="space-y-4 rounded-2xl bg-canvas-control/60 p-4 text-sm text-slate-200 shadow-inner shadow-black/20">
+    <section className="space-y-4 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
       <header>
-        <p className="text-base font-semibold text-white">3. Position & Scale</p>
+        <p className="text-base font-semibold text-white">2. Position & Scale</p>
         <p className="text-xs text-slate-400">
           Drag to move. Wheel, pinch, or Shift + Drag to scale.
         </p>
@@ -207,7 +207,7 @@ export const TransformPanel = () => {
           onClick={resetTransform}
           className="ml-auto rounded-full bg-white/10 px-4 py-1 font-semibold text-white transition hover:bg-white/20"
         >
-          Reset (R)
+          Reset
         </button>
       </div>
     </section>

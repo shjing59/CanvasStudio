@@ -1,30 +1,91 @@
+import { useCallback, useState } from 'react'
+import { useDropzone } from 'react-dropzone'
 import { useExportImage } from '../hooks/useExportImage'
 import { useCanvasStore } from '../state/canvasStore'
 
-// Mobile-first toolbar that keeps the most common toggles within thumb reach.
+// Bottom toolbar with Import, Export, and common toggles - always accessible
 export const BottomToolbar = () => {
+  const loadImage = useCanvasStore((state) => state.loadImage)
+  const image = useCanvasStore((state) => state.image)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
   const autoFit = useCanvasStore((state) => state.autoFit)
   const setAutoFit = useCanvasStore((state) => state.setAutoFit)
   const { exportImage, isExporting } = useExportImage()
+  const [error, setError] = useState<string | null>(null)
+
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      const file = files[0]
+      if (!file) return
+      try {
+        setError(null)
+        await loadImage(file)
+      } catch (err) {
+        setError((err as Error).message)
+      }
+    },
+    [loadImage]
+  )
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    accept: { 'image/*': [] },
+    multiple: false,
+    onDropAccepted: handleFiles,
+    onDropRejected: () => setError('Unsupported file. Please drop a single image.'),
+    noClick: true,
+    noKeyboard: true,
+  })
+
+  const isReady = Boolean(image) && !isExporting
 
   return (
-    <div className="sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-3 rounded-3xl border border-white/10 bg-canvas-control/80 p-3 text-xs backdrop-blur">
+    <div
+      {...getRootProps()}
+      className={`fixed bottom-0 left-0 right-0 z-20 flex flex-wrap items-center gap-3 rounded-3xl border border-white/10 bg-canvas-control/80 p-3 text-xs backdrop-blur transition ${
+        isDragActive ? 'bg-white/10' : ''
+      }`}
+    >
+      <input {...getInputProps()} />
+      
+      {/* Import Button */}
+      <button
+        type="button"
+        onClick={open}
+        className="rounded-full border border-white/20 bg-white/5 px-4 py-2 font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+      >
+        {image ? 'Replace' : 'Import'}
+      </button>
+
+      {/* Toggles */}
       <ToolbarToggle
         label="Center Snap"
         active={centerSnap}
         onClick={() => setCenterSnap(!centerSnap)}
       />
       <ToolbarToggle label="Auto Fit" active={autoFit} onClick={() => setAutoFit(!autoFit)} />
+
+      {/* Export Button */}
       <button
         type="button"
         onClick={exportImage}
-        disabled={isExporting}
-        className="ml-auto rounded-full bg-white px-5 py-2 font-semibold text-black disabled:bg-white/40"
+        disabled={!isReady}
+        className={`ml-auto rounded-full px-5 py-2 font-semibold transition ${
+          isReady
+            ? 'bg-white text-black hover:bg-slate-100'
+            : 'bg-white/10 text-slate-500 cursor-not-allowed'
+        }`}
       >
         {isExporting ? 'Exporting…' : 'Export'}
       </button>
+
+      {/* Error message */}
+      {error && (
+        <span className="w-full text-xs text-rose-400">{error}</span>
+      )}
+      {isDragActive && (
+        <span className="w-full text-xs text-white">Drop image to import</span>
+      )}
     </div>
   )
 }

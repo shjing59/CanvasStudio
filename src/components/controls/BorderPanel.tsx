@@ -20,9 +20,9 @@ export const BorderPanel = () => {
   }
 
   return (
-    <section className="space-y-3 rounded-2xl bg-canvas-control/60 p-4 text-sm text-slate-200 shadow-inner shadow-black/20">
+    <section className="space-y-3 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
       <header>
-        <p className="text-base font-semibold text-white">4. Top / Bottom Borders</p>
+        <p className="text-base font-semibold text-white">3. Top / Bottom Borders</p>
         <p className="text-xs text-slate-400">
           Frame-room auto scales while preserving your custom positioning.
         </p>

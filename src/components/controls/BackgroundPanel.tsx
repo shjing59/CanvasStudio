@@ -6,7 +6,7 @@ export const BackgroundPanel = () => {
   const setBackground = useCanvasStore((state) => state.setBackground)
 
   return (
-    <section className="space-y-3 rounded-2xl bg-canvas-control/60 p-4 text-sm text-slate-200 shadow-inner shadow-black/20">
+    <section className="space-y-3 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
       <header>
         <p className="text-base font-semibold text-white">Canvas Background</p>
         <p className="text-xs text-slate-400">Choose the background color for your canvas</p>

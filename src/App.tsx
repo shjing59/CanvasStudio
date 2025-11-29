@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { BottomToolbar } from './components/BottomToolbar'
-import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { CanvasStage } from './components/canvas/CanvasStage'
 import { ControlPanel } from './components/controls/ControlPanel'
 
@@ -9,7 +8,6 @@ function App() {
 
   return (
     <div className="relative min-h-screen text-white">
-      <KeyboardShortcuts />
       <CanvasStage />
       
       {/* Toggle button */}
@@ -32,7 +30,7 @@ function App() {
 
       {/* Drawer panel */}
       <div
-        className={`fixed top-0 right-0 z-20 h-screen w-full md:max-w-md bg-canvas-control/95 backdrop-blur-lg border-l border-white/10 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto ${
+        className={`fixed top-0 right-0 z-20 h-screen w-full md:max-w-md bg-canvas-control/80 backdrop-blur border-l border-white/10 transition-transform duration-300 ease-in-out overflow-y-auto pb-20 ${
           isPanelOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -41,9 +39,7 @@ function App() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 lg:hidden">
-        <BottomToolbar />
-      </div>
+      <BottomToolbar />
     </div>
   )
 }
