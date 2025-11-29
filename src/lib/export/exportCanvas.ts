@@ -14,25 +14,14 @@ export async function exportComposite(
     throw new Error('Import an image before exporting.')
   }
 
-  const ratio = snapshot.dimensions.ratio
   const previewWidth = snapshot.previewSize?.width ?? snapshot.dimensions.baseWidth
   const previewHeight = snapshot.previewSize?.height ?? snapshot.dimensions.baseHeight
 
-  // Calculate target dimensions based on export mode
-  let targetWidth: number
-  let targetHeight: number
+  // Use canvas size (preview size) for export
+  const targetWidth = Math.round(previewWidth)
+  const targetHeight = Math.round(previewHeight)
 
-  if (options.mode === 'original') {
-    // Scale to original image resolution while maintaining aspect ratio
-    targetWidth = snapshot.image.width
-    targetHeight = Math.round(targetWidth / ratio)
-  } else {
-    // Use canvas size (preview size)
-    targetWidth = Math.round(previewWidth)
-    targetHeight = Math.round(previewHeight)
-  }
-
-  // Calculate scale factor from preview to target
+  // Calculate scale factor from preview to target (should be 1:1 for canvas mode)
   const widthScale = targetWidth / previewWidth
   const heightScale = targetHeight / previewHeight
 

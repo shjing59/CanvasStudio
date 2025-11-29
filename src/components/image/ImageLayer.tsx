@@ -130,50 +130,6 @@ export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps
     }
   }, [isDragging])
 
-  // Handle wheel for zooming
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const delta = -e.deltaY * 0.001 // Negative to zoom in on scroll up
-    const minScale = initialFitScale.current || 0.1
-    const newScale = Math.max(
-      minScale, // Don't go below initial fit scale
-      Math.min(transform.scale * (1 + delta), MAX_SCALE)
-    )
-
-    // If scale didn't change, don't update
-    if (Math.abs(newScale - transform.scale) < 0.001) return
-
-    // Get mouse position relative to canvas container
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) return
-
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
-
-    // Current image center in screen space (before transform)
-    // The image is positioned at canvas center, so its center is at (canvasWidth/2, canvasHeight/2)
-    // Then translate(x, y) moves it from there
-    const currentCenterX = canvasWidth / 2 + transform.x
-    const currentCenterY = canvasHeight / 2 + transform.y
-
-    // Point in image space (relative to image center, before scale)
-    const pointInImageX = (mouseX - currentCenterX) / transform.scale
-    const pointInImageY = (mouseY - currentCenterY) / transform.scale
-
-    // After zoom, this point should still be at (mouseX, mouseY) in screen space
-    // New center = mouse position - (point in image space * new scale)
-    const newCenterX = mouseX - pointInImageX * newScale
-    const newCenterY = mouseY - pointInImageY * newScale
-
-    // Convert back to transform coordinates
-    const newX = newCenterX - canvasWidth / 2
-    const newY = newCenterY - canvasHeight / 2
-
-    updateTransform({ scale: newScale, x: newX, y: newY })
-  }, [transform, canvasWidth, canvasHeight, updateTransform])
-
   // Clamp scale to max (but not below initial fit scale)
   useEffect(() => {
     if (transform.scale > MAX_SCALE) {
@@ -204,7 +160,6 @@ export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onWheel={handleWheel}
     >
       <img
         src={image.element.src}

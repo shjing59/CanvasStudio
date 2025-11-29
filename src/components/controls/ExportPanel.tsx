@@ -42,49 +42,26 @@ export const ExportPanel = () => {
           {isExporting ? 'Rendering…' : 'Export (⌘/Ctrl + E)'}
         </button>
       </header>
-      <div className="grid grid-cols-2 gap-3 text-xs">
-        <fieldset className="space-y-2 rounded-2xl border border-white/10 p-3">
-          <legend className="text-xs uppercase tracking-wide text-slate-400">
-            Format
-          </legend>
-          <div className="flex gap-2">
-            {(['png', 'jpeg'] as const).map((format) => (
-              <button
-                key={format}
-                type="button"
-                onClick={() => setExportOptions({ format })}
-                className={`flex-1 rounded-lg border px-3 py-2 font-semibold capitalize ${
-                  exportOptions.format === format
-                    ? 'border-white bg-white/10 text-white'
-                    : 'border-white/10 text-slate-400'
-                }`}
-              >
-                {format.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="space-y-2 rounded-2xl border border-white/10 p-3">
-          <legend className="text-xs uppercase tracking-wide text-slate-400">
-            Resolution
-          </legend>
-          <div className="flex gap-2">
-            {(['original', 'canvas'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setExportOptions({ mode })}
-                className={`flex-1 rounded-lg border px-3 py-2 font-semibold capitalize ${
-                  exportOptions.mode === mode
-                    ? 'border-white bg-white/10 text-white'
-                    : 'border-white/10 text-slate-400'
-                }`}
-              >
-                {mode === 'original' ? 'Scale to Original' : 'Use Canvas Size'}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+      <div className="space-y-2 rounded-2xl border border-white/10 p-3 text-xs">
+        <legend className="text-xs uppercase tracking-wide text-slate-400 mb-2">
+          Format
+        </legend>
+        <div className="flex gap-2">
+          {(['png', 'jpeg'] as const).map((format) => (
+            <button
+              key={format}
+              type="button"
+              onClick={() => setExportOptions({ format })}
+              className={`flex-1 rounded-lg border px-3 py-2 font-semibold capitalize ${
+                exportOptions.format === format
+                  ? 'border-white bg-white/10 text-white'
+                  : 'border-white/10 text-slate-400'
+              }`}
+            >
+              {format.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="space-y-3 rounded-2xl border border-white/10 p-3 text-xs">
         <div className="flex flex-wrap gap-2">

@@ -1,3 +1,4 @@
+import { BackgroundPanel } from './BackgroundPanel'
 import { BorderPanel } from './BorderPanel'
 import { ExportPanel } from './ExportPanel'
 import { ImportPanel } from './ImportPanel'
@@ -10,6 +11,7 @@ export const ControlPanel = () => (
     <ImportPanel />
     <RatioPanel />
     <TransformPanel />
+    <BackgroundPanel />
     <BorderPanel />
     <ExportPanel />
   </aside>

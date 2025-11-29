@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode, forwardRef, useImperativeHandle } from 'react'
+import { useCanvasStore } from '../../state/canvasStore'
 
 interface CanvasProps {
   aspectRatio: number // width / height
@@ -15,6 +16,7 @@ const MAX_CANVAS_WIDTH = 1400
  * Positioned at the center of the workspace.
  */
 export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, children, onSizeChange }, ref) => {
+  const background = useCanvasStore((state) => state.background)
   // Initialize with actual window size if available, otherwise use defaults
   const [windowSize, setWindowSize] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -71,10 +73,11 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
   return (
     <div
       ref={canvasRef}
-      className="relative bg-white shadow-2xl"
+      className="relative shadow-2xl"
       style={{
         width: canvasSize.width,
         height: canvasSize.height,
+        backgroundColor: background,
       }}
     >
       {children}

@@ -64,7 +64,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   autoFit: false,
   background: '#ffffff',
   previewSize: null,
-  exportOptions: { format: 'png', quality: 1, mode: 'original' },
+  exportOptions: { format: 'png', quality: 1, mode: 'canvas' },
   async loadImage(file: File) {
     const image = await loadImageFromFile(file)
     // Reset transform - ImageLayer will initialize scale when canvas dimensions are available

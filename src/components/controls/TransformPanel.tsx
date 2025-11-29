@@ -8,8 +8,6 @@ export const TransformPanel = () => {
   const resetTransform = useCanvasStore((state) => state.resetTransform)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
-  const autoFit = useCanvasStore((state) => state.autoFit)
-  const setAutoFit = useCanvasStore((state) => state.setAutoFit)
   const previewSize = useCanvasStore((state) => state.previewSize)
   const image = useCanvasStore((state) => state.image)
   const updateTransform = useCanvasStore((state) => state.updateTransform)
@@ -182,13 +180,12 @@ export const TransformPanel = () => {
           Recenter
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-3 text-xs">
+      <div className="space-y-2 text-xs">
         <ToggleButton
           label="Center Snap"
           active={centerSnap}
           onClick={() => setCenterSnap(!centerSnap)}
         />
-        <ToggleButton label="Auto Fit" active={autoFit} onClick={() => setAutoFit(!autoFit)} />
       </div>
       <div className="flex flex-wrap gap-2 text-xs">
         <button
