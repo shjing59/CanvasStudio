@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { RATIO_PRESETS } from '../../lib/canvas/ratios'
 import { useCanvasStore } from '../../state/canvasStore'
+import { PanelSection } from '../ui/PanelSection'
+import { PresetButtons } from '../ui/PresetButtons'
 
 // Switches between preset, original, and custom canvas ratios.
 export const RatioPanel = () => {
@@ -12,32 +14,22 @@ export const RatioPanel = () => {
 
   const ratioButtons = useMemo(
     () =>
-      RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(image) : true)),
+      RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(image) : true)).map(
+        (ratio) => ({ label: ratio.label, value: ratio.id, description: ratio.description })
+      ),
     [image]
   )
 
   return (
-    <section className="space-y-3 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200">
-      <header>
-        <p className="text-base font-semibold text-white">1. Canvas Ratio</p>
-        <p className="text-xs text-slate-400">Switch instantly while preserving layout</p>
-      </header>
-      <div className="flex flex-wrap gap-2">
-        {ratioButtons.map((ratio) => (
-          <button
-            key={ratio.id}
-            type="button"
-            onClick={() => setRatio(ratio.id)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-              ratio.id === ratioId
-                ? 'border-white bg-white/10 text-white'
-                : 'border-white/10 text-slate-300 hover:border-white/30'
-            }`}
-          >
-            {ratio.label}
-          </button>
-        ))}
-      </div>
+    <PanelSection 
+      title="1. Canvas Ratio" 
+      description="Switch instantly while preserving layout"
+    >
+      <PresetButtons
+        presets={ratioButtons}
+        currentValue={ratioId}
+        onChange={setRatio}
+      />
       <div className="grid grid-cols-2 gap-2 text-xs">
         <label className="flex flex-col gap-1">
           <span className="text-slate-400">Custom width</span>
@@ -67,7 +59,6 @@ export const RatioPanel = () => {
       <p className="text-xs text-slate-500">
         Custom values auto-apply once both width and height are defined.
       </p>
-    </section>
+    </PanelSection>
   )
 }
-

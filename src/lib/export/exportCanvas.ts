@@ -14,26 +14,29 @@ export async function exportComposite(
     throw new Error('Import an image before exporting.')
   }
 
-  const previewWidth = snapshot.previewSize?.width ?? snapshot.dimensions.baseWidth
-  const previewHeight = snapshot.previewSize?.height ?? snapshot.dimensions.baseHeight
+  // Use fixed dimensions based on image and ratio, not screen-responsive preview size
+  // This ensures consistent export dimensions regardless of screen size
+  const targetWidth = snapshot.dimensions.baseWidth
+  const targetHeight = snapshot.dimensions.baseHeight
 
-  // Use canvas size (preview size) for export
-  const targetWidth = Math.round(previewWidth)
-  const targetHeight = Math.round(previewHeight)
-
-  // Calculate scale factor from preview to target (should be 1:1 for canvas mode)
+  // Calculate scale factor from preview to export dimensions
+  // This scales the transform coordinates from preview space to export space
+  const previewWidth = snapshot.previewSize?.width ?? targetWidth
+  const previewHeight = snapshot.previewSize?.height ?? targetHeight
   const widthScale = targetWidth / previewWidth
   const heightScale = targetHeight / previewHeight
 
   const canvas = document.createElement('canvas')
-  const dpr = window.devicePixelRatio || 1
-  canvas.width = Math.max(1, Math.round(targetWidth * dpr))
-  canvas.height = Math.max(1, Math.round(targetHeight * dpr))
+  // Export at exact resolution - no DPR multiplier for consistent file sizes
+  canvas.width = Math.max(1, Math.round(targetWidth))
+  canvas.height = Math.max(1, Math.round(targetHeight))
   const ctx = canvas.getContext('2d', { colorSpace: 'srgb' })
   if (!ctx) {
     throw new Error('Unable to prepare export context.')
   }
-  ctx.scale(dpr, dpr)
+  // No DPR scaling needed for export
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
 
   // Render only the canvas + image (workspace is never exported)
   renderScene({
@@ -44,7 +47,9 @@ export async function exportComposite(
     transform: {
       x: snapshot.transform.x * widthScale,
       y: snapshot.transform.y * heightScale,
-      scale: snapshot.transform.scale,
+      // Scale the transform scale by the same factor to maintain visual appearance
+      // When export canvas is larger than preview, the scale needs to be proportionally larger
+      scale: snapshot.transform.scale * widthScale,
     },
     borders: {
       top: 0, // Borders are not used in the new architecture

@@ -4,6 +4,7 @@ export type RatioOptionId =
   | '1:1'
   | '3:2'
   | '2:3'
+  | '5:4'
   | '4:5'
   | '9:16'
   | 'original'
@@ -36,7 +37,6 @@ export interface CanvasDimensions {
 export interface ExportOptions {
   format: 'png' | 'jpeg'
   quality: number // 0 - 1
-  mode: 'original' | 'canvas'
 }
 
 export interface CanvasSnapshot {
