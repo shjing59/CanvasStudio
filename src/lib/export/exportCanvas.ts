@@ -14,14 +14,15 @@ export async function exportComposite(
     throw new Error('Import an image before exporting.')
   }
 
-  const previewWidth = snapshot.previewSize?.width ?? snapshot.dimensions.baseWidth
-  const previewHeight = snapshot.previewSize?.height ?? snapshot.dimensions.baseHeight
+  // Use fixed dimensions based on image and ratio, not screen-responsive preview size
+  // This ensures consistent export dimensions regardless of screen size
+  const targetWidth = snapshot.dimensions.baseWidth
+  const targetHeight = snapshot.dimensions.baseHeight
 
-  // Use canvas size (preview size) for export
-  const targetWidth = Math.round(previewWidth)
-  const targetHeight = Math.round(previewHeight)
-
-  // Calculate scale factor from preview to target (should be 1:1 for canvas mode)
+  // Calculate scale factor from preview to export dimensions
+  // This scales the transform coordinates from preview space to export space
+  const previewWidth = snapshot.previewSize?.width ?? targetWidth
+  const previewHeight = snapshot.previewSize?.height ?? targetHeight
   const widthScale = targetWidth / previewWidth
   const heightScale = targetHeight / previewHeight
 
@@ -44,7 +45,9 @@ export async function exportComposite(
     transform: {
       x: snapshot.transform.x * widthScale,
       y: snapshot.transform.y * heightScale,
-      scale: snapshot.transform.scale,
+      // Scale the transform scale by the same factor to maintain visual appearance
+      // When export canvas is larger than preview, the scale needs to be proportionally larger
+      scale: snapshot.transform.scale * widthScale,
     },
     borders: {
       top: 0, // Borders are not used in the new architecture
