@@ -27,14 +27,16 @@ export async function exportComposite(
   const heightScale = targetHeight / previewHeight
 
   const canvas = document.createElement('canvas')
-  const dpr = window.devicePixelRatio || 1
-  canvas.width = Math.max(1, Math.round(targetWidth * dpr))
-  canvas.height = Math.max(1, Math.round(targetHeight * dpr))
+  // Export at exact resolution - no DPR multiplier for consistent file sizes
+  canvas.width = Math.max(1, Math.round(targetWidth))
+  canvas.height = Math.max(1, Math.round(targetHeight))
   const ctx = canvas.getContext('2d', { colorSpace: 'srgb' })
   if (!ctx) {
     throw new Error('Unable to prepare export context.')
   }
-  ctx.scale(dpr, dpr)
+  // No DPR scaling needed for export
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
 
   // Render only the canvas + image (workspace is never exported)
   renderScene({
