@@ -23,7 +23,6 @@ export function renderScene({
   height,
   background,
   transform,
-  borders,
   image,
 }: SceneParams) {
   // Fill canvas background (white by default)

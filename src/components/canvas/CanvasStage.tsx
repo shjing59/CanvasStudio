@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
 import { findRatioValue } from '../../lib/canvas/ratios'
 import { Workspace } from '../workspace/Workspace'

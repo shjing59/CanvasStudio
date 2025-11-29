@@ -15,7 +15,7 @@ export const RatioPanel = () => {
   const ratioButtons = useMemo(
     () =>
       RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(image) : true)).map(
-        (ratio) => ({ label: ratio.label, value: ratio.id })
+        (ratio) => ({ label: ratio.label, value: ratio.id, description: ratio.description })
       ),
     [image]
   )

@@ -1,5 +1,5 @@
 interface PresetButtonsProps<T> {
-  presets: readonly { label: string; value: T }[]
+  presets: readonly { label: string; value: T; description?: string }[]
   currentValue: T
   onChange: (value: T) => void
   className?: string
@@ -21,6 +21,7 @@ export const PresetButtons = <T,>({
           key={String(preset.value)}
           type="button"
           onClick={() => onChange(preset.value)}
+          title={preset.description}
           className={`rounded-full border px-4 py-1 text-xs font-medium transition ${
             currentValue === preset.value
               ? 'border-white bg-white/20 text-white'
