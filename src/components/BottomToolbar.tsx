@@ -9,7 +9,7 @@ export const BottomToolbar = () => {
   const image = useCanvasStore((state) => state.image)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
-  const { exportImage, isExporting } = useExportImage()
+  const { exportImage, isExporting, canShare } = useExportImage()
   const [error, setError] = useState<string | null>(null)
 
   const handleFiles = useCallback(
@@ -73,7 +73,7 @@ export const BottomToolbar = () => {
             : 'bg-white/10 text-slate-500 cursor-not-allowed'
         }`}
       >
-        {isExporting ? 'Exporting…' : 'Export'}
+        {isExporting ? 'Exporting…' : canShare ? 'Share' : 'Export'}
       </button>
 
       {/* Error message */}
