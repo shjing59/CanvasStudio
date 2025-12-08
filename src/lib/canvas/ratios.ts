@@ -6,6 +6,7 @@ export const RATIO_PRESETS: RatioOption[] = [
   { id: '2:3', label: '2 : 3', value: 2 / 3, description: 'Portrait' },
   { id: '5:4', label: '5 : 4', value: 5 / 4, description: 'Landscape' },
   { id: '4:5', label: '4 : 5', value: 4 / 5, description: 'Portrait' },
+  { id: '16:9', label: '16 : 9', value: 16 / 9, description: 'Wide' },
   { id: '9:16', label: '9 : 16', value: 9 / 16, description: 'Story' },
   { id: 'original', label: 'Original', value: null, description: 'Match image' },
   { id: 'custom', label: 'Custom', value: null, description: 'User defined' },

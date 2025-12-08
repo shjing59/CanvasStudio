@@ -6,6 +6,7 @@ export type RatioOptionId =
   | '2:3'
   | '5:4'
   | '4:5'
+  | '16:9'
   | '9:16'
   | 'original'
   | 'custom'
