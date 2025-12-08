@@ -28,7 +28,6 @@ export async function exportComposite(
   // Calculate scale factor from preview to export dimensions
   // Use uniform scale factor to maintain proportions correctly
   const previewWidth = snapshot.previewSize?.width ?? targetWidth
-  const previewHeight = snapshot.previewSize?.height ?? targetHeight
 
   // Since both preview and export maintain the same aspect ratio,
   // we use uniform scaling to transform coordinates correctly

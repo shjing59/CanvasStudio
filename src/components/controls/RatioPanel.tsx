@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import { RATIO_PRESETS } from '../../lib/canvas/ratios'
 import { CUSTOM_RATIO } from '../../lib/canvas/constants'
-import { useCanvasStore } from '../../state/canvasStore'
+import { useCanvasStore, selectActiveImage } from '../../state/canvasStore'
 import { PanelSection } from '../ui/PanelSection'
 import { PresetButtons } from '../ui/PresetButtons'
 
@@ -16,17 +16,18 @@ function validateRatioValue(value: number): number {
 // Switches between preset, original, and custom canvas ratios.
 export const RatioPanel = () => {
   const ratioId = useCanvasStore((state) => state.ratioId)
-  const image = useCanvasStore((state) => state.image)
+  const activeImage = useCanvasStore(selectActiveImage)
   const setRatio = useCanvasStore((state) => state.setRatio)
   const customRatio = useCanvasStore((state) => state.customRatio)
   const setCustomRatio = useCanvasStore((state) => state.setCustomRatio)
 
+  // Show "Original" ratio only when there's an active image
   const ratioButtons = useMemo(
     () =>
-      RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(image) : true)).map(
+      RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(activeImage) : true)).map(
         (ratio) => ({ label: ratio.label, value: ratio.id, description: ratio.description })
       ),
-    [image]
+    [activeImage]
   )
 
   const handleWidthChange = useCallback(

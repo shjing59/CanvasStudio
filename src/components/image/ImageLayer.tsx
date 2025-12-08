@@ -2,26 +2,27 @@ import { useRef, useState, useCallback } from 'react'
 import { useCanvasStore, selectFitScale } from '../../state/canvasStore'
 import { SCALE } from '../../lib/canvas/constants'
 import type { ImageMetadata } from '../../types/image'
+import type { TransformState } from '../../types/canvas'
 
 interface ImageLayerProps {
   image: ImageMetadata
+  transform: TransformState
   canvasWidth: number
   canvasHeight: number
 }
 
 /**
  * ImageLayer component - renders the user-imported image.
- * 
+ *
  * This is a PURE display component:
- * - Renders the image based on transform state from the store
+ * - Renders the image based on transform passed as prop
  * - Handles drag and zoom gestures
  * - Does NOT initialize or calculate scale (that's the store's job)
  */
-export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps) => {
-  const transform = useCanvasStore((state) => state.transform)
+export const ImageLayer = ({ image, transform, canvasWidth, canvasHeight }: ImageLayerProps) => {
   const updateTransform = useCanvasStore((state) => state.updateTransform)
   const fitScale = useCanvasStore(selectFitScale)
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{
@@ -68,7 +69,10 @@ export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps
       if (e.shiftKey) {
         const zoomFactor = 1 - dy * 0.002 // Negative dy zooms in
         const minScale = fitScale || SCALE.MIN
-        const newScale = Math.max(minScale * SCALE.DEFAULT_MULTIPLIER, Math.min(transform.scale * zoomFactor, SCALE.MAX))
+        const newScale = Math.max(
+          minScale * SCALE.DEFAULT_MULTIPLIER,
+          Math.min(transform.scale * zoomFactor, SCALE.MAX)
+        )
 
         // Keep zoom centered on canvas center
         updateTransform({ scale: newScale, x: 0, y: 0 })

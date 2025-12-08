@@ -1,17 +1,20 @@
 import { useMemo } from 'react'
-import { useCanvasStore, selectFitScale } from '../../state/canvasStore'
+import { useCanvasStore, selectFitScale, selectActiveImage } from '../../state/canvasStore'
 import { PanelSection } from '../ui/PanelSection'
 import { ToggleButton } from '../ui/ToggleButton'
 
 // Gives fine-grained control over scale toggles + center snapping + reset flows.
 export const TransformPanel = () => {
-  const transform = useCanvasStore((state) => state.transform)
+  const activeImage = useCanvasStore(selectActiveImage)
   const resetTransform = useCanvasStore((state) => state.resetTransform)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
   const previewSize = useCanvasStore((state) => state.previewSize)
   const updateTransform = useCanvasStore((state) => state.updateTransform)
   const fitImageToCanvas = useCanvasStore((state) => state.fitImageToCanvas)
+
+  // Get transform from active image
+  const transform = activeImage?.transform ?? { x: 0, y: 0, scale: 1 }
 
   // Use the store's selector for fit scale (single source of truth)
   const fitScale = useCanvasStore(selectFitScale)
@@ -51,6 +54,8 @@ export const TransformPanel = () => {
     updateTransform({ [axis]: (value / 100) * half })
   }
 
+  const hasActiveImage = !!activeImage
+
   return (
     <PanelSection
       title="2. Position & Scale"
@@ -69,6 +74,7 @@ export const TransformPanel = () => {
           value={scalePercent}
           onChange={(event) => handleScalePercentChange(Number(event.target.value))}
           className="w-full accent-white"
+          disabled={!hasActiveImage}
         />
         <p className="text-[11px] text-slate-500">
           -100% keeps the image fully fitting inside the canvas, 0% equals the fitted size, positive
@@ -88,6 +94,7 @@ export const TransformPanel = () => {
           value={positionSlider.x}
           onChange={(event) => handlePositionChange('x')(Number(event.target.value))}
           className="w-full accent-white"
+          disabled={!hasActiveImage}
         />
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>Vertical</span>
@@ -101,20 +108,23 @@ export const TransformPanel = () => {
           value={positionSlider.y}
           onChange={(event) => handlePositionChange('y')(Number(event.target.value))}
           className="w-full accent-white"
+          disabled={!hasActiveImage}
         />
       </div>
       <div className="flex gap-2 text-xs">
         <button
           type="button"
           onClick={fitImageToCanvas}
-          className="flex-1 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40"
+          disabled={!hasActiveImage}
+          className="flex-1 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Auto Fit
         </button>
         <button
           type="button"
           onClick={() => updateTransform({ x: 0, y: 0 })}
-          className="flex-1 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40"
+          disabled={!hasActiveImage}
+          className="flex-1 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Recenter
         </button>
@@ -130,21 +140,24 @@ export const TransformPanel = () => {
         <button
           type="button"
           onClick={() => handleZoomStep(1)}
-          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40"
+          disabled={!hasActiveImage}
+          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + Zoom
         </button>
         <button
           type="button"
           onClick={() => handleZoomStep(-1)}
-          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40"
+          disabled={!hasActiveImage}
+          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           − Zoom
         </button>
         <button
           type="button"
           onClick={resetTransform}
-          className="ml-auto rounded-full bg-white/10 px-4 py-1 font-semibold text-white transition hover:bg-white/20"
+          disabled={!hasActiveImage}
+          className="ml-auto rounded-full bg-white/10 px-4 py-1 font-semibold text-white transition hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Reset
         </button>
