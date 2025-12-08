@@ -8,7 +8,7 @@ import { QUALITY_PRESETS } from '../../constants/presets'
 export const ExportSettingsPanel = () => {
   const exportOptions = useCanvasStore((state) => state.exportOptions)
   const setExportOptions = useCanvasStore((state) => state.setExportOptions)
-  const image = useCanvasStore((state) => state.image)
+  const hasImages = useCanvasStore((state) => state.images.length > 0)
 
   const qualityLabel = useMemo(
     () => Math.round(exportOptions.quality * 100),
@@ -60,7 +60,7 @@ export const ExportSettingsPanel = () => {
           />
         </label>
       </div>
-      {!image && (
+      {!hasImages && (
         <p className="text-xs text-slate-500">
           Import an image to enable export.
         </p>

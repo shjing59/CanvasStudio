@@ -1,72 +1,40 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { useCanvasStore } from '../../state/canvasStore'
-import { MAX_SCALE } from '../../lib/canvas/math'
+import { useRef, useState, useCallback } from 'react'
+import { useCanvasStore, selectFitScale } from '../../state/canvasStore'
+import { SCALE } from '../../lib/canvas/constants'
 import type { ImageMetadata } from '../../types/image'
+import type { TransformState } from '../../types/canvas'
 
 interface ImageLayerProps {
   image: ImageMetadata
+  transform: TransformState
   canvasWidth: number
   canvasHeight: number
 }
 
 /**
- * ImageLayer component - user-imported image that is movable and scalable.
- * Uses CSS transform with center origin for consistent centering.
+ * ImageLayer component - renders the user-imported image.
+ *
+ * This is a PURE display component:
+ * - Renders the image based on transform passed as prop
+ * - Handles drag and zoom gestures
+ * - Does NOT initialize or calculate scale (that's the store's job)
  */
-export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps) => {
-  const transform = useCanvasStore((state) => state.transform)
+export const ImageLayer = ({ image, transform, canvasWidth, canvasHeight }: ImageLayerProps) => {
   const updateTransform = useCanvasStore((state) => state.updateTransform)
+  const fitScale = useCanvasStore(selectFitScale)
+
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState<{ x: number; y: number; startX: number; startY: number } | null>(null)
-  const initialFitScale = useRef<number | null>(null)
-  const lastImageId = useRef<string | null>(null)
-  const hasInitialized = useRef(false)
+  const [dragStart, setDragStart] = useState<{
+    x: number
+    y: number
+    startX: number
+    startY: number
+  } | null>(null)
 
-  // Use the HTMLImageElement provided by the store (already loaded during import)
-  const imgElement = image.element
-  const imgNaturalWidth = useMemo(() => {
-    if (!imgElement) return image.width || 0
-    return imgElement.naturalWidth || image.width || 0
-  }, [imgElement, image.width])
-  const imgNaturalHeight = useMemo(() => {
-    if (!imgElement) return image.height || 0
-    return imgElement.naturalHeight || image.height || 0
-  }, [imgElement, image.height])
-
-  // Reset initialization when a new image is loaded
-  useEffect(() => {
-    const currentImageId = image.element.src
-    const imageChanged = lastImageId.current !== currentImageId
-
-    if (imageChanged) {
-      lastImageId.current = currentImageId
-      hasInitialized.current = false
-      initialFitScale.current = null
-    }
-  }, [image])
-
-  // Compute the initial scale so the image fits the canvas while keeping its aspect ratio
-  useEffect(() => {
-    if (canvasWidth <= 0 || canvasHeight <= 0 || imgNaturalWidth <= 0 || imgNaturalHeight <= 0) {
-      return
-    }
-
-    if (!hasInitialized.current) {
-      const scaleByWidth = canvasWidth / imgNaturalWidth
-      const scaleByHeight = canvasHeight / imgNaturalHeight
-      const isPortrait = imgNaturalHeight > imgNaturalWidth
-      const scale = isPortrait
-        ? Math.min(scaleByHeight, scaleByWidth)
-        : Math.min(scaleByWidth, scaleByHeight)
-
-      initialFitScale.current = scale
-      hasInitialized.current = true
-      // Default scale is -5% relative to fit scale
-      const defaultScale = scale * 0.95
-      updateTransform({ scale: defaultScale, x: 0, y: 0 })
-    }
-  }, [canvasWidth, canvasHeight, imgNaturalWidth, imgNaturalHeight, updateTransform])
+  // Use the HTMLImageElement provided by the store
+  const imgNaturalWidth = image.width || 0
+  const imgNaturalHeight = image.height || 0
 
   // Handle pointer down for dragging
   const handlePointerDown = useCallback(
@@ -88,56 +56,54 @@ export const ImageLayer = ({ image, canvasWidth, canvasHeight }: ImageLayerProps
   )
 
   // Handle pointer move for dragging
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDragging || !dragStart) return
-    e.preventDefault()
-    e.stopPropagation()
-
-    const dx = e.clientX - dragStart.x
-    const dy = e.clientY - dragStart.y
-
-    // If Shift is held, use vertical drag for zoom (centered zoom)
-    if (e.shiftKey) {
-      const zoomFactor = 1 - dy * 0.002 // Negative dy zooms in
-      const minScale = initialFitScale.current || 0.1
-      const newScale = Math.max(
-        minScale,
-        Math.min(transform.scale * zoomFactor, MAX_SCALE)
-      )
-
-      // Keep zoom centered on canvas center
-      updateTransform({ scale: newScale, x: 0, y: 0 })
-    } else {
-      // Regular drag for position
-      updateTransform({
-        x: dragStart.startX + dx,
-        y: dragStart.startY + dy,
-      })
-    }
-  }, [isDragging, dragStart, transform.scale, updateTransform])
-
-  // Handle pointer up for dragging
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (isDragging) {
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDragging || !dragStart) return
       e.preventDefault()
       e.stopPropagation()
-      setIsDragging(false)
-      setDragStart(null)
-      if (containerRef.current) {
-        containerRef.current.releasePointerCapture(e.pointerId)
+
+      const dx = e.clientX - dragStart.x
+      const dy = e.clientY - dragStart.y
+
+      // If Shift is held, use vertical drag for zoom (centered zoom)
+      if (e.shiftKey) {
+        const zoomFactor = 1 - dy * 0.002 // Negative dy zooms in
+        const minScale = fitScale || SCALE.MIN
+        const newScale = Math.max(
+          minScale * SCALE.DEFAULT_MULTIPLIER,
+          Math.min(transform.scale * zoomFactor, SCALE.MAX)
+        )
+
+        // Keep zoom centered on canvas center
+        updateTransform({ scale: newScale, x: 0, y: 0 })
+      } else {
+        // Regular drag for position
+        updateTransform({
+          x: dragStart.startX + dx,
+          y: dragStart.startY + dy,
+        })
       }
-    }
-  }, [isDragging])
+    },
+    [isDragging, dragStart, transform.scale, updateTransform, fitScale]
+  )
 
-  // Clamp scale to max (but not below initial fit scale)
-  useEffect(() => {
-    if (transform.scale > MAX_SCALE) {
-      updateTransform({ scale: MAX_SCALE })
-    }
-  }, [transform.scale, updateTransform])
+  // Handle pointer up for dragging
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (isDragging) {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+        setDragStart(null)
+        if (containerRef.current) {
+          containerRef.current.releasePointerCapture(e.pointerId)
+        }
+      }
+    },
+    [isDragging]
+  )
 
-  // Don't render if canvas dimensions aren't available or we don't have any image dimensions
-  // Note: We render even if image hasn't fully loaded yet - we use metadata dimensions initially
+  // Don't render if canvas dimensions aren't available or we don't have image dimensions
   if (canvasWidth <= 0 || canvasHeight <= 0 || imgNaturalWidth <= 0 || imgNaturalHeight <= 0) {
     return null
   }

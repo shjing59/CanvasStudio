@@ -1,7 +1,15 @@
 import { create } from 'zustand'
 import { DEFAULT_RATIO_ID, findRatioValue } from '../lib/canvas/ratios'
-import { DEFAULT_BASE_WIDTH, MAX_SCALE, clamp, computeCoverScale, computeContainScale, convertBorderToBasePx } from '../lib/canvas/math'
-import { loadImageFromFile } from '../lib/image/loadImage'
+import { SCALE, CANVAS, RESIZE } from '../lib/canvas/constants'
+import { clamp, computeFitScale } from '../lib/canvas/math'
+import {
+  computeInitialTransform,
+  applySnapToTransform,
+  createImageSnapshot,
+  mergeTransform,
+  applyPositionDelta,
+} from '../lib/canvas/transform'
+import { loadImageFromFile, loadImagesFromFiles } from '../lib/image/loadImage'
 import type {
   BorderSetting,
   CanvasSnapshot,
@@ -9,196 +17,431 @@ import type {
   RatioOptionId,
   TransformState,
 } from '../types/canvas'
-import type { ImageMetadata } from '../types/image'
+import type { ImageMetadata, ImageState } from '../types/image'
 
 type BorderKey = 'top' | 'bottom'
 
-export interface CanvasStoreState {
-  image?: ImageMetadata
+// ============================================================================
+// CANVAS SETTINGS (shared across all images)
+// ============================================================================
+interface CanvasSettings {
   ratioId: RatioOptionId
   customRatio: { width: number; height: number }
-  transform: TransformState
-  borders: Record<BorderKey, BorderSetting>
-  centerSnap: boolean
   background: string
-  previewSize: { width: number; height: number } | null
+  centerSnap: boolean
   exportOptions: ExportOptions
+  previewSize: { width: number; height: number } | null
+  borders: Record<BorderKey, BorderSetting>
+}
+
+// ============================================================================
+// IMAGE QUEUE STATE
+// ============================================================================
+interface ImageQueueState {
+  /** All images in the queue */
+  images: ImageState[]
+  /** Currently active image ID (shown in main canvas) */
+  activeImageId: string | null
+}
+
+// ============================================================================
+// COMBINED STORE STATE
+// ============================================================================
+export interface CanvasStoreState extends CanvasSettings, ImageQueueState {
+  /** Internal flag: when true, next setPreviewSize will fit the active image */
+  _needsInitialFit: boolean
+
+  // Image queue actions
   loadImage: (file: File) => Promise<void>
+  loadImages: (files: File[]) => Promise<void>
+  setActiveImage: (id: string) => void
+  removeImage: (id: string) => void
+  clearAllImages: () => void
+
+  // Ratio actions
   setRatio: (id: RatioOptionId) => void
   setCustomRatio: (payload: { width: number; height: number }) => void
+
+  // Transform actions (apply to active image)
   updateTransform: (transform: Partial<TransformState>) => void
   nudgePosition: (delta: { x: number; y: number }) => void
   adjustScale: (factor: number) => void
   setScale: (value: number) => void
-  setCenterSnap: (value: boolean) => void
   resetTransform: () => void
-  setBorders: (payload: Partial<Record<BorderKey, BorderSetting>>) => void
   fitImageToCanvas: () => void
+
+  // Settings actions
+  setCenterSnap: (value: boolean) => void
+  setBorders: (payload: Partial<Record<BorderKey, BorderSetting>>) => void
   setBackground: (value: string) => void
   setPreviewSize: (size: { width: number; height: number }) => void
   setExportOptions: (options: Partial<ExportOptions>) => void
+
+  // Computed / Selectors
   snapshot: () => CanvasSnapshot
+  getActiveImage: () => ImageState | null
+  getActiveImageMetadata: () => ImageMetadata | undefined
 }
 
 const initialBorder: BorderSetting = { value: 0, unit: 'px' }
-const MIN_SCALE_VALUE = 0.05
 
-// Centralized state for every canvas + export concern so UI remains declarative.
+// ============================================================================
+// INTERNAL HELPERS
+// ============================================================================
+
+/**
+ * Get the active image state from the queue.
+ */
+function getActiveImageState(state: CanvasStoreState): ImageState | null {
+  if (!state.activeImageId) return null
+  return state.images.find((img) => img.image.id === state.activeImageId) ?? null
+}
+
+/**
+ * Update a specific image in the queue.
+ */
+function updateImageInQueue(
+  images: ImageState[],
+  imageId: string,
+  updater: (img: ImageState) => ImageState
+): ImageState[] {
+  return images.map((img) => (img.image.id === imageId ? updater(img) : img))
+}
+
+/**
+ * Fits the active image to the current preview canvas size.
+ */
+function fitActiveImageToPreview(): void {
+  const state = useCanvasStore.getState()
+  const activeImage = getActiveImageState(state)
+  if (!activeImage || !state.previewSize) return
+
+  const { width: canvasW, height: canvasH } = state.previewSize
+  const initialTransform = computeInitialTransform(activeImage.image, canvasW, canvasH)
+
+  useCanvasStore.setState({
+    images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+      ...img,
+      transform: initialTransform,
+      isEdited: false,
+    })),
+    _needsInitialFit: false,
+  })
+}
+
+/**
+ * Calculates the fit scale based on current preview size and active image.
+ */
+function getFitScaleFromState(state: CanvasStoreState): number | null {
+  const activeImage = getActiveImageState(state)
+  if (!activeImage || !state.previewSize) return null
+  const { width: canvasW, height: canvasH } = state.previewSize
+  if (canvasW <= 0 || canvasH <= 0) return null
+  return computeFitScale(activeImage.image, canvasW, canvasH)
+}
+
+/**
+ * Derives the base dimensions for export (based on active image or default).
+ */
+function deriveDimensions(state: CanvasStoreState) {
+  const activeImage = getActiveImageState(state)
+  const baseWidth = activeImage?.image.width ?? CANVAS.DEFAULT_BASE_WIDTH
+  const ratio = getRatioValue(state)
+  const baseHeight = baseWidth / ratio
+  return { baseWidth, baseHeight, ratio }
+}
+
+/**
+ * Gets the current ratio value based on ratio ID, custom values, and active image.
+ */
+function getRatioValue(state: CanvasStoreState): number {
+  const activeImage = getActiveImageState(state)
+  return findRatioValue(state.ratioId, { custom: state.customRatio, image: activeImage?.image })
+}
+
+// ============================================================================
+// STORE
+// ============================================================================
+
 export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
+  // Canvas settings (shared)
   ratioId: DEFAULT_RATIO_ID,
   customRatio: { width: 4, height: 5 },
-  transform: { x: 0, y: 0, scale: 1 },
+  background: '#ffffff',
+  centerSnap: true,
+  exportOptions: { format: 'png', quality: 1 },
+  previewSize: null,
   borders: {
     top: { ...initialBorder },
     bottom: { ...initialBorder },
   },
-  centerSnap: true,
-  background: '#ffffff',
-  previewSize: null,
-  exportOptions: { format: 'png', quality: 1 },
+
+  // Image queue state
+  images: [],
+  activeImageId: null,
+  _needsInitialFit: false,
+
+  // ========================================================================
+  // IMAGE QUEUE ACTIONS
+  // ========================================================================
+
   async loadImage(file: File) {
     const image = await loadImageFromFile(file)
-    // Reset transform - ImageLayer will initialize scale when canvas dimensions are available
-    set({ 
+    const state = get()
+
+    // Create new image state with default transform
+    const newImageState: ImageState = {
       image,
       transform: { x: 0, y: 0, scale: 1 },
+      isEdited: false,
+    }
+
+    // Add to queue and make it active
+    set({
+      images: [...state.images, newImageState],
+      activeImageId: image.id,
+      _needsInitialFit: true,
+    })
+
+    // If preview size already known, fit immediately
+    if (state.previewSize) {
+      fitActiveImageToPreview()
+    }
+  },
+
+  async loadImages(files: File[]) {
+    if (files.length === 0) return
+
+    const images = await loadImagesFromFiles(files)
+    const state = get()
+
+    // Create image states for all
+    const newImageStates: ImageState[] = images.map((image) => ({
+      image,
+      transform: { x: 0, y: 0, scale: 1 },
+      isEdited: false,
+    }))
+
+    // Add all to queue, make first one active
+    const firstNewId = images[0].id
+    set({
+      images: [...state.images, ...newImageStates],
+      activeImageId: state.activeImageId ?? firstNewId,
+      _needsInitialFit: true,
+    })
+
+    // If preview size already known, fit immediately
+    if (state.previewSize) {
+      fitActiveImageToPreview()
+    }
+  },
+
+  setActiveImage(id: string) {
+    const state = get()
+    const targetImage = state.images.find((img) => img.image.id === id)
+    if (!targetImage) return
+
+    // Check if this image needs initial fitting
+    // (hasn't been edited and still has default scale of 1)
+    const needsFit = !targetImage.isEdited && targetImage.transform.scale === 1
+
+    set({
+      activeImageId: id,
+      _needsInitialFit: needsFit,
+    })
+
+    // Fit immediately if needed and preview size is available
+    if (needsFit && state.previewSize) {
+      fitActiveImageToPreview()
+    }
+  },
+
+  removeImage(id: string) {
+    const state = get()
+    const newImages = state.images.filter((img) => img.image.id !== id)
+
+    // If removing active image, select next or previous
+    let newActiveId = state.activeImageId
+    if (state.activeImageId === id) {
+      const removedIndex = state.images.findIndex((img) => img.image.id === id)
+      if (newImages.length > 0) {
+        // Select next image, or last if we removed the last one
+        const newIndex = Math.min(removedIndex, newImages.length - 1)
+        newActiveId = newImages[newIndex].image.id
+      } else {
+        newActiveId = null
+      }
+    }
+
+    set({
+      images: newImages,
+      activeImageId: newActiveId,
     })
   },
+
+  clearAllImages() {
+    set({
+      images: [],
+      activeImageId: null,
+    })
+  },
+
+  // ========================================================================
+  // RATIO ACTIONS
+  // ========================================================================
+
   setRatio(id) {
+    const state = get()
+    const oldRatio = getRatioValue(state)
+
     set({ ratioId: id })
-    ensureValidState({ fit: true })
+
+    const newState = get()
+    const newRatio = getRatioValue(newState)
+
+    // If ratio changed significantly, refit all images
+    if (Math.abs(newRatio - oldRatio) > RESIZE.ASPECT_RATIO_THRESHOLD && newState.images.length > 0) {
+      set({ _needsInitialFit: true })
+    }
   },
+
   setCustomRatio(payload) {
+    const state = get()
+    const oldRatio = getRatioValue(state)
+
     set({ customRatio: payload, ratioId: 'custom' })
-    ensureValidState({ fit: true })
+
+    const newState = get()
+    const newRatio = getRatioValue(newState)
+
+    if (Math.abs(newRatio - oldRatio) > RESIZE.ASPECT_RATIO_THRESHOLD && newState.images.length > 0) {
+      set({ _needsInitialFit: true })
+    }
   },
-  updateTransform(transform) {
-    set((state) => {
-      const merged = {
-        ...state.transform,
-        ...transform,
-      }
-      const snapped = state.centerSnap
-        ? {
-            ...merged,
-            x: Math.abs(merged.x) < 2 ? 0 : merged.x,
-            y: Math.abs(merged.y) < 2 ? 0 : merged.y,
-          }
-        : merged
-      return { transform: snapped }
+
+  // ========================================================================
+  // TRANSFORM ACTIONS (apply to active image)
+  // ========================================================================
+
+  updateTransform(partial) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    const merged = mergeTransform(activeImage.transform, partial)
+    const snapped = applySnapToTransform(merged, state.centerSnap)
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        transform: snapped,
+        isEdited: true,
+      })),
     })
   },
+
   nudgePosition(delta) {
-    set((state) => {
-      const moved = {
-        ...state.transform,
-        x: state.transform.x + delta.x,
-        y: state.transform.y + delta.y,
-      }
-      const snapped = state.centerSnap
-        ? {
-            ...moved,
-            x: Math.abs(moved.x) < 2 ? 0 : moved.x,
-            y: Math.abs(moved.y) < 2 ? 0 : moved.y,
-          }
-        : moved
-      return { transform: snapped }
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    const moved = applyPositionDelta(activeImage.transform, delta)
+    const snapped = applySnapToTransform(moved, state.centerSnap)
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        transform: snapped,
+        isEdited: true,
+      })),
     })
   },
+
   adjustScale(factor) {
-    set((state) => {
-      const nextScale = clamp(state.transform.scale * factor, MIN_SCALE_VALUE, MAX_SCALE)
-      return { transform: { ...state.transform, scale: nextScale } }
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    const nextScale = clamp(activeImage.transform.scale * factor, SCALE.MIN, SCALE.MAX)
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        transform: { ...img.transform, scale: nextScale },
+        isEdited: true,
+      })),
     })
   },
+
   setScale(value) {
-    set((state) => {
-      return { transform: { ...state.transform, scale: clamp(value, MIN_SCALE_VALUE, MAX_SCALE) } }
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        transform: { ...img.transform, scale: clamp(value, SCALE.MIN, SCALE.MAX) },
+        isEdited: true,
+      })),
     })
   },
+
+  resetTransform() {
+    fitActiveImageToPreview()
+  },
+
+  fitImageToCanvas() {
+    fitActiveImageToPreview()
+  },
+
+  // ========================================================================
+  // SETTINGS ACTIONS
+  // ========================================================================
+
   setCenterSnap(value) {
     set({ centerSnap: value })
   },
-  resetTransform() {
-    set((state) => {
-      const minScale = getFitScaleFromPreview(state)
-      if (minScale) {
-        // Default scale is -5% relative to fit scale
-        const defaultScale = minScale * 0.95
-        return {
-          transform: {
-            x: 0,
-            y: 0,
-            scale: Math.max(defaultScale, MIN_SCALE_VALUE),
-          },
-        }
-      }
-      return {
-        transform: {
-          x: 0,
-          y: 0,
-          scale: MIN_SCALE_VALUE,
-        },
-      }
-    })
-  },
+
   setBorders(payload) {
     set((state) => ({
-      borders: {
-        ...state.borders,
-        ...payload,
-      },
+      borders: { ...state.borders, ...payload },
     }))
-    ensureValidState({ fit: false })
   },
-  fitImageToCanvas() {
-    const state = get()
-    const fitScale = getFitScaleFromPreview(state)
-    if (!fitScale) {
-      return
-    }
-    // Default scale is -5% relative to fit scale
-    const defaultScale = fitScale * 0.95
-    set({
-      transform: {
-        x: 0,
-        y: 0,
-        scale: Math.max(defaultScale, MIN_SCALE_VALUE),
-      },
-    })
-  },
+
   setBackground(value) {
     set({ background: value })
   },
+
   setPreviewSize(size) {
     const state = get()
     const oldSize = state.previewSize
-    
+
     set({ previewSize: size })
-    
-    // Check if size changed significantly (more than just a small window resize)
-    // This helps catch ratio changes where the canvas dimensions change substantially
-    const sizeChangedSignificantly = oldSize && (
-      Math.abs(size.width - oldSize.width) > 10 || 
-      Math.abs(size.height - oldSize.height) > 10
-    )
-    
-    // If size changed significantly and we have an image, refit it
-    // This ensures the image is properly positioned after ratio changes
-    if (sizeChangedSignificantly && state.image) {
-      const fitScale = getFitScaleFromPreview({ ...state, previewSize: size })
-      if (fitScale !== null) {
-        const defaultScale = fitScale * 0.95
-        set({
-          transform: {
-            x: 0,
-            y: 0,
-            scale: Math.max(defaultScale, MIN_SCALE_VALUE),
-          },
-        })
+
+    // Case 1: We have a pending fit (new image or ratio change)
+    if (state._needsInitialFit && state.images.length > 0) {
+      fitActiveImageToPreview()
+      return
+    }
+
+    // Case 2: First time getting size with existing images
+    if (!oldSize && state.images.length > 0) {
+      fitActiveImageToPreview()
+      return
+    }
+
+    // Case 3: Aspect ratio changed
+    if (oldSize && state.images.length > 0) {
+      const oldAspect = oldSize.width / oldSize.height
+      const newAspect = size.width / size.height
+      if (Math.abs(newAspect - oldAspect) > RESIZE.ASPECT_RATIO_THRESHOLD) {
+        fitActiveImageToPreview()
+        return
       }
     }
   },
+
   setExportOptions(options) {
     set((state) => ({
       exportOptions: {
@@ -211,11 +454,31 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       },
     }))
   },
+
+  // ========================================================================
+  // COMPUTED / SELECTORS
+  // ========================================================================
+
   snapshot() {
     const state = get()
+    const activeImage = getActiveImageState(state)
+
+    if (activeImage && state.previewSize) {
+      return createImageSnapshot({
+        image: activeImage.image,
+        transform: activeImage.transform,
+        canvasWidth: state.previewSize.width,
+        canvasHeight: state.previewSize.height,
+        background: state.background,
+        ratioId: state.ratioId,
+        customRatio: state.customRatio,
+      })
+    }
+
+    // Fallback for no active image
     return {
-      image: state.image,
-      transform: state.transform,
+      image: undefined,
+      transform: { x: 0, y: 0, scale: 1 },
       borders: state.borders,
       background: state.background,
       dimensions: deriveDimensions(state),
@@ -223,98 +486,33 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       previewSize: state.previewSize,
     }
   },
+
+  getActiveImage() {
+    return getActiveImageState(get())
+  },
+
+  getActiveImageMetadata() {
+    return getActiveImageState(get())?.image
+  },
 }))
 
-function getRatioValue(state: CanvasStoreState): number {
-  return findRatioValue(state.ratioId, { custom: state.customRatio, image: state.image })
-}
-
-function deriveDimensions(state: CanvasStoreState) {
-  const baseWidth = state.image?.width ?? DEFAULT_BASE_WIDTH
-  const ratio = getRatioValue(state)
-  const baseHeight = baseWidth / ratio
-  return { baseWidth, baseHeight, ratio }
-}
-
-function getMinScale(state: CanvasStoreState): number {
-  if (!state.image) return MIN_SCALE_VALUE
-  const { baseWidth, baseHeight } = deriveDimensions(state)
-  return computeContainScale(state.image, baseWidth, baseHeight)
-}
-
-function getFitScaleFromPreview(state: CanvasStoreState): number | null {
-  if (!state.image || !state.previewSize) return null
-  const { width: canvasWidth, height: canvasHeight } = state.previewSize
-  if (!canvasWidth || !canvasHeight) return null
-  return Math.min(canvasWidth / state.image.width, canvasHeight / state.image.height)
-}
-
-// Guarantees that scale & alignment respect the current ratio/border constraints.
-function ensureValidState({ fit, useContain = false }: { fit: boolean; useContain?: boolean }) {
-  const state = useCanvasStore.getState()
-  const image = state.image
-  if (!image) {
-    return
-  }
-
-  // When fitting, prefer using actual preview canvas size if available
-  // This ensures the scale matches what the user sees on screen
-  if (fit && state.previewSize) {
-    const fitScale = getFitScaleFromPreview(state)
-    if (fitScale !== null) {
-      // Default scale is -5% relative to fit scale
-      const defaultScale = fitScale * 0.95
-      useCanvasStore.setState({
-        transform: {
-          x: 0,
-          y: 0,
-          scale: Math.max(defaultScale, MIN_SCALE_VALUE),
-        },
-      })
-      return
-    }
-  }
-
-  // Fall back to theoretical dimensions if previewSize is not available
-  const { baseWidth, baseHeight } = deriveDimensions(state)
-  
-  let initialScale: number
-  if (useContain) {
-    // Use contain logic: scale image to fit inside canvas
-    initialScale = computeContainScale(image, baseWidth, baseHeight)
-  } else {
-    // Use cover logic: scale image to cover canvas (with borders)
-    const topPx = convertBorderToBasePx(state.borders.top, baseHeight)
-    const bottomPx = convertBorderToBasePx(state.borders.bottom, baseHeight)
-    initialScale = computeCoverScale(image, baseWidth, baseHeight, topPx, bottomPx)
-  }
-
-  useCanvasStore.setState((current) => {
-    let nextScale: number
-    if (useContain) {
-      // Default scale is -5% relative to fit scale
-      nextScale = initialScale * 0.95
-    } else {
-      // When fitting, apply -5% default; otherwise preserve current scale if larger
-      nextScale = fit 
-        ? initialScale * 0.95
-        : Math.max(initialScale, current.transform.scale)
-    }
-    const nextTransform = {
-      ...current.transform,
-      scale: nextScale,
-    }
-    if (fit) {
-      nextTransform.x = 0
-      nextTransform.y = 0
-    }
-    return { transform: nextTransform }
-  })
-}
+// ============================================================================
+// EXPORTED SELECTORS
+// ============================================================================
 
 export const selectDimensions = deriveDimensions
-
 export const selectRatioValue = getRatioValue
+export const selectFitScale = getFitScaleFromState
+export const selectActiveImage = getActiveImageState
 
-export const selectMinimumScale = getMinScale
-
+export function selectCanvasSettings(state: CanvasStoreState): CanvasSettings {
+  return {
+    ratioId: state.ratioId,
+    customRatio: state.customRatio,
+    background: state.background,
+    centerSnap: state.centerSnap,
+    exportOptions: state.exportOptions,
+    previewSize: state.previewSize,
+    borders: state.borders,
+  }
+}

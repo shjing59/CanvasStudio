@@ -1,111 +1,173 @@
 ## A. Overview
 
-CanvasStudio is a production-ready Vite + React (TS) application that recreates InShot’s canvas workflow with extra framing controls. It ingests high-resolution imagery, preserves EXIF metadata, lets the user stage any aspect ratio (including custom/original), and exports in sRGB at either canvas or source resolution.
+CanvasStudio is a production-ready Vite + React (TS) application that recreates InShot's canvas workflow with extra framing controls. It ingests high-resolution imagery, preserves EXIF metadata, lets the user stage any aspect ratio (including custom/original), and exports in sRGB at either canvas or source resolution.
 
 ## B. Feature List
 
 - **Image ingestion**
-  - Drag-and-drop or manual upload (single file, any image mime type).
+  - Drag-and-drop or manual upload (supports multiple files, ready for filmstrip queue).
+  - Each image gets a unique ID for queue management.
   - Reads and surfaces key EXIF tags (e.g., camera model).
   - Caches an `HTMLImageElement` to keep the original resolution for export.
 - **Canvas ratios**
-  - Presets: 1:1, 3:2, 2:3, 4:5, 9:16.
+  - Presets: 1:1, 3:2, 2:3, 5:4, 4:5, 16:9, 9:16.
   - Original ratio (enabled once an image is present).
-  - Custom ratio via width/height inputs; switching is instant and non-destructive.
+  - Custom ratio via width/height inputs (validated 1-100 range); switching is instant and non-destructive.
 - **Positioning + scale**
-  - **Initial image import**: Images are automatically fitted to canvas using contain logic (no cropping). They start centered with the fitted scale applied.
+  - **Initial image import**: Images are automatically fitted to canvas at 95% of fit scale (leaving a small border visible). They start centered with the fitted scale applied.
   - **Manual controls**:
-    - Width & height inputs (px) update the base image dimensions; aspect lock ensures proportional edits.
-    - Scale slider now represents `-100% … 0 … +100%` relative to the fitted size (negative = shrink, positive = zoom).
+    - Scale slider represents `-100% … 0 … +100%` relative to the fitted size (negative = shrink, positive = zoom).
     - Drag (pointer events) to reposition, scroll wheel to zoom (cursor-centered), Shift + drag for centered zoom.
-  - **Transform system**: Uses CSS `transform: translate(x, y) scale(scale)` with `transform-origin: center center`.
-    - Image uses the user-defined dimensions (defaults to natural pixels); transform scale applies on top.
-    - Auto Fit button recomputes the contain scale and recenters instantly; Recenter snaps translation back to `0,0`.
-    - Center Snap toggles translation snapping near center; Reset (`R`) restores contain scale and center.
-- **Adjustable top/bottom borders**
-  - Independent height inputs with px/% units.
-  - Auto-calculates the minimum scale so the visible portion always remains covered.
-  - Keeps user translation unless Auto Fit is enabled (then recenters between borders).
+  - **Transform system**: Uses CSS positioning with calculated offsets based on scale and translation.
+    - Image uses exact natural pixel dimensions; transform scale applies on top.
+    - Auto Fit button recomputes the fit scale (95%) and recenters instantly; Recenter snaps translation back to `0,0`.
+    - Center Snap toggles translation snapping near center (2px threshold); Reset restores fit scale and center.
+- **Background colors**
+  - Preset colors: White, Black, Light Gray, Dark Gray, Transparent.
+  - Custom color via color picker and hex input.
 - **Export**
   - Format: PNG or JPEG (sRGB).
-  - Quality presets plus custom slider (50–100%).
-  - Resolution modes: “Scale to Original” (match source pixels) or “Use Canvas Size”.
-  - Keyboard shortcut `Cmd/Ctrl + E`.
-- **Keyboard shortcuts**
-  - `Cmd/Ctrl + E` export, `R` reset, `Shift + drag` zoom modifier, `Shift + scroll` for precision zoom (wheel handler already scales, shift boosts control).
+  - Quality presets (100%, 90%, 80%) plus custom slider (50–100%).
+  - Resolution: Uses base dimensions derived from image width and selected ratio.
+  - Coordinate transformation scales preview space to export space uniformly.
+  - Pure export functions ready for batch export (`exportSingleImage`, `exportMultipleImages`).
 - **UI & layout**
-  - Canvas centered with responsive scaling (max-width guard).
-  - Control stack on the right (desktop) / stacked (mobile) and a sticky mobile toolbar.
+  - Canvas centered with responsive scaling (min 240px, max 1400px width).
+  - Control panel on the right with collapsible drawer.
+  - Bottom toolbar with Import/Replace, Center Snap toggle, and Export/Share button.
 
 ## C. File Structure
 
 ```
 src/
   components/
-    BottomToolbar.tsx        # Mobile-first quick actions
-    KeyboardShortcuts.tsx    # Global keymap bindings
-    canvas/CanvasStage.tsx   # Rendering surface + gestures
-    controls/                # Modular control groups
-      BorderPanel.tsx
-      ControlPanel.tsx
-      ExportPanel.tsx
-      ImportPanel.tsx
-      RatioPanel.tsx
-      TransformPanel.tsx
+    BottomToolbar.tsx          # Quick actions bar (import, snap, export)
+    canvas/
+      Canvas.tsx               # White rectangle representing export area
+      CanvasStage.tsx          # Orchestrates Workspace + Canvas + ImageLayer
+    controls/                  # Modular control groups
+      BackgroundPanel.tsx      # Background color selection
+      BorderPanel.tsx          # Top/bottom border controls (currently unused)
+      ControlPanel.tsx         # Container for all control panels
+      ExportSettingsPanel.tsx  # Export format and quality settings
+      RatioPanel.tsx           # Aspect ratio selection + custom inputs
+      TransformPanel.tsx       # Position & scale controls
+    image/
+      ImageLayer.tsx           # User-imported image (pure display + gestures)
+    ui/
+      PanelSection.tsx         # Reusable panel wrapper
+      PresetButtons.tsx        # Reusable preset button group
+      ToggleButton.tsx         # Reusable toggle button
+    workspace/
+      Workspace.tsx            # Checkerboard background (never exported)
+  constants/
+    presets.ts                 # UI presets for backgrounds, etc.
   hooks/
-    useExportImage.ts        # Shared export logic
-    useResizeObserver.ts     # Layout measurement helper
+    useExportImage.ts          # Shared export logic with Web Share API
+    useResizeObserver.ts       # Layout measurement helper
   lib/
     canvas/
-      math.ts                # Shared math helpers
-      ratios.ts              # Ratio catalog + helpers
-      render.ts              # Single draw routine
-    export/exportCanvas.ts   # Export pipeline
-    image/loadImage.ts       # EXIF + image loader
-  state/canvasStore.ts       # Zustand store + helpers
-  types/                     # Shared DTOs
+      constants.ts             # Centralized constants (SCALE, CANVAS, RESIZE, etc.)
+      math.ts                  # computeFitScale, computeDefaultScale, clamp
+      ratios.ts                # Ratio catalog + findRatioValue helper
+      render.ts                # Single draw routine for preview/export
+      transform.ts             # Pure transform functions (computeInitialTransform, etc.)
+    export/
+      exportCanvas.ts          # Export pipeline (exportComposite, exportSingleImage, exportMultipleImages)
+    image/
+      loadImage.ts             # EXIF parsing + image loader (loadImageFromFile, loadImagesFromFiles)
+  state/
+    canvasStore.ts             # Zustand store (single source of truth)
+  types/
+    canvas.ts                  # Canvas-related types (ratios, borders, transform)
+    image.ts                   # ImageMetadata, ImageState types
 ```
 
-Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.config.js`, `postcss.config.js`.
+Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.config.js`, `postcss.config.js`, `vite.config.ts`.
 
 ## D. Architecture Decisions
 
 1. **Zustand for state** – Lightweight global store keeps gesture handlers and UI controls in sync without prop drilling.
+
 2. **Three-layer architecture** – Workspace (checkerboard background, never exported) → Canvas (white rectangle, export area) → ImageLayer (user-imported image, draggable/scalable).
-3. **Image transform system** – Uses CSS `transform: translate(x, y) scale(scale)` with `transform-origin: center center` for consistent centering. Image uses exact natural pixel dimensions; all resizing handled by scale().
-4. **Initial image scaling** – Photoshop/Lightroom-style: images larger than canvas scale down to fit; images smaller than canvas remain at 100% scale (never auto-zoomed). Always centered on import.
-5. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
-6. **Modular controls** – Each requirement (import, ratio, transform, borders, export) lives in its own component to keep future additions isolated.
-7. **Pointer-based gestures** – Direct pointer event handling for drag/zoom provides precise control and prevents parent containers from consuming events.
-8. **Documentation-driven** – This file plus README act as living specs so future contributors know exactly how to extend the system.
+
+3. **Single source of truth for scaling** – The store controls all scale initialization via `_needsInitialFit` flag and `fitCurrentImageToPreview()`. ImageLayer is a pure display component that never calculates or initializes scale.
+
+4. **Pure transform functions** – `lib/canvas/transform.ts` contains stateless functions that work with any image:
+   - `computeInitialTransform(image, canvasWidth, canvasHeight)` – Calculate initial fit transform
+   - `createImageSnapshot(params)` – Create export snapshot for any image
+   - `applySnapToTransform(transform, centerSnap)` – Apply center snapping
+   - `mergeTransform(current, partial)` – Merge transform updates
+   - `applyPositionDelta(transform, delta)` – Apply position changes
+
+5. **Centralized constants** – All magic numbers live in `lib/canvas/constants.ts`:
+   - `SCALE.DEFAULT_MULTIPLIER = 0.95` (95% of fit)
+   - `SCALE.MIN = 0.05`, `SCALE.MAX = 8`
+   - `CANVAS.DEFAULT_BASE_WIDTH = 1600`
+   - `RESIZE.ASPECT_RATIO_THRESHOLD = 0.01` (triggers refit on ratio change)
+   - `SNAP.THRESHOLD = 2` (pixels for center snapping)
+
+6. **Predictable initialization flow**:
+   1. `loadImage()` → stores image with unique ID, sets `_needsInitialFit: true`
+   2. Canvas renders → reports size via `setPreviewSize()`
+   3. `setPreviewSize()` → if `_needsInitialFit`, calls `fitCurrentImageToPreview()`
+   4. ImageLayer → pure render, reads state only
+
+7. **Two coordinate systems**:
+   - **Preview space**: Actual screen pixels (responsive to window size)
+   - **Export space**: Fixed resolution based on image dimensions and ratio
+   - Export transforms preview coordinates to export coordinates uniformly
+
+8. **Separation of canvas settings vs image state** – Store cleanly separates:
+   - **CanvasSettings**: ratioId, customRatio, background, centerSnap, exportOptions, previewSize (shared across all images)
+   - **ActiveImageState**: image, transform, _needsInitialFit (per-image in future filmstrip queue)
+
+9. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
+
+10. **Modular controls** – Each concern (import, ratio, transform, background, export) lives in its own component.
+
+11. **Pointer-based gestures** – Direct pointer event handling for drag/zoom provides precise control.
+
+12. **Extensible for filmstrip queue** – Architecture is ready for multi-image support:
+    - `ImageMetadata` has unique `id` field
+    - `ImageState` type bundles image + transform + isEdited flag
+    - `loadImagesFromFiles()` can load multiple images
+    - `exportSingleImage()` / `exportMultipleImages()` for batch export
+    - Dropzone accepts multiple files
 
 ## E. Roadmap
 
+- **Filmstrip queue** – Multi-image import with thumbnail strip, per-image transforms, batch export.
 - **Filters & adjustments** – Integrate GPU-accelerated filters (WebGL or Canvas2D) with stackable adjustment layers.
 - **Cropping modes** – Add explicit crop handles separate from canvas ratios to isolate subject framing.
 - **Multi-background system** – Extend background picker with gradients, textures, and color palettes tied to brand presets.
 - **Preset management** – Allow saving/loading custom ratio + border + transform presets per social network.
 - **Collaboration hooks** – Shareable links or JSON exports for designers to hand off settings.
+- **Undo/redo** – Add history stack for transform operations.
 
 ## F. Coding Conventions
 
 - TypeScript-first, strict typing for every exported helper.
 - Tailwind utility classes for layout; shared colors live in `tailwind.config.js`.
+- Constants extracted to `lib/canvas/constants.ts` – no magic numbers in components.
+- Pure functions in `lib/` – stateless, testable, reusable with any data.
 - Kommentar policy: concise top-of-module or block comments for every major subsystem.
 - Zustand setters must remain pure (returning new slices) to keep time-travel/debugging reliable.
-- Reuse helpers (e.g., `convertBorderToBasePx`, `renderScene`) everywhere to avoid drift between preview/export.
+- Reuse helpers (e.g., `computeFitScale`, `renderScene`, `createImageSnapshot`) everywhere to avoid drift between preview/export.
+- Components should be pure display; all state logic belongs in the store.
 
 ## G. How to Contribute / Extend
 
 1. **Install & run** – `yarn`, `yarn dev`.
-2. **Add features** – Drop new logic under `lib/` or `state/` first, then bind UI.
-3. **Update docs** – Every feature change requires touching this file (see template below) plus README when workflow changes.
-4. **Testing** – Run `yarn build` before opening a PR to ensure TypeScript + Vite succeed.
-5. **Accessibility & performance** – Favor keyboard access, memoized selectors, and defer heavyweight work off the main render.
+2. **Add features** – Drop new logic under `lib/` as pure functions first, then bind to store/UI.
+3. **Add constants** – New magic numbers go in `lib/canvas/constants.ts`.
+4. **Add types** – New data structures go in `types/` with clear documentation.
+5. **Update docs** – Every feature change requires touching this file plus README when workflow changes.
+6. **Testing** – Run `yarn build` before opening a PR to ensure TypeScript + Vite succeed.
+7. **Accessibility & performance** – Favor keyboard access, memoized selectors, and defer heavyweight work off the main render.
 
 ---
 
 ## UPDATE TEMPLATE FOR CURSORAI
 
 Whenever new features, components, or architecture changes are introduced, update this file by rewriting the relevant sections. Keep the documentation consistent with the latest codebase.
-

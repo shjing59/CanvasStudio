@@ -1,28 +1,54 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { RATIO_PRESETS } from '../../lib/canvas/ratios'
-import { useCanvasStore } from '../../state/canvasStore'
+import { CUSTOM_RATIO } from '../../lib/canvas/constants'
+import { useCanvasStore, selectActiveImage } from '../../state/canvasStore'
 import { PanelSection } from '../ui/PanelSection'
 import { PresetButtons } from '../ui/PresetButtons'
+
+/**
+ * Validates and clamps a custom ratio value to safe bounds.
+ */
+function validateRatioValue(value: number): number {
+  if (isNaN(value) || !isFinite(value)) return CUSTOM_RATIO.MIN
+  return Math.max(CUSTOM_RATIO.MIN, Math.min(CUSTOM_RATIO.MAX, Math.round(value)))
+}
 
 // Switches between preset, original, and custom canvas ratios.
 export const RatioPanel = () => {
   const ratioId = useCanvasStore((state) => state.ratioId)
-  const image = useCanvasStore((state) => state.image)
+  const activeImage = useCanvasStore(selectActiveImage)
   const setRatio = useCanvasStore((state) => state.setRatio)
   const customRatio = useCanvasStore((state) => state.customRatio)
   const setCustomRatio = useCanvasStore((state) => state.setCustomRatio)
 
+  // Show "Original" ratio only when there's an active image
   const ratioButtons = useMemo(
     () =>
-      RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(image) : true)).map(
+      RATIO_PRESETS.filter((ratio) => (ratio.id === 'original' ? Boolean(activeImage) : true)).map(
         (ratio) => ({ label: ratio.label, value: ratio.id, description: ratio.description })
       ),
-    [image]
+    [activeImage]
+  )
+
+  const handleWidthChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = validateRatioValue(Number(e.target.value))
+      setCustomRatio({ width: value, height: customRatio.height })
+    },
+    [customRatio.height, setCustomRatio]
+  )
+
+  const handleHeightChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = validateRatioValue(Number(e.target.value))
+      setCustomRatio({ width: customRatio.width, height: value })
+    },
+    [customRatio.width, setCustomRatio]
   )
 
   return (
-    <PanelSection 
-      title="1. Canvas Ratio" 
+    <PanelSection
+      title="1. Canvas Ratio"
       description="Switch instantly while preserving layout"
     >
       <PresetButtons
@@ -35,11 +61,10 @@ export const RatioPanel = () => {
           <span className="text-slate-400">Custom width</span>
           <input
             type="number"
-            min={1}
+            min={CUSTOM_RATIO.MIN}
+            max={CUSTOM_RATIO.MAX}
             value={customRatio.width}
-            onChange={(event) =>
-              setCustomRatio({ width: Number(event.target.value), height: customRatio.height })
-            }
+            onChange={handleWidthChange}
             className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
           />
         </label>
@@ -47,17 +72,16 @@ export const RatioPanel = () => {
           <span className="text-slate-400">Custom height</span>
           <input
             type="number"
-            min={1}
+            min={CUSTOM_RATIO.MIN}
+            max={CUSTOM_RATIO.MAX}
             value={customRatio.height}
-            onChange={(event) =>
-              setCustomRatio({ width: customRatio.width, height: Number(event.target.value) })
-            }
+            onChange={handleHeightChange}
             className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
           />
         </label>
       </div>
       <p className="text-xs text-slate-500">
-        Custom values auto-apply once both width and height are defined.
+        Custom values auto-apply once both width and height are defined (range: {CUSTOM_RATIO.MIN}-{CUSTOM_RATIO.MAX}).
       </p>
     </PanelSection>
   )

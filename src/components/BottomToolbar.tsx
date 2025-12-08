@@ -2,86 +2,132 @@ import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useExportImage } from '../hooks/useExportImage'
 import { useCanvasStore } from '../state/canvasStore'
+import { ImageQueue } from './queue/ImageQueue'
 
-// Bottom toolbar with Import, Export, and common toggles - always accessible
+/**
+ * Bottom toolbar with filmstrip queue, Import, Export, and common toggles.
+ * Supports multi-image workflow with batch operations.
+ */
 export const BottomToolbar = () => {
-  const loadImage = useCanvasStore((state) => state.loadImage)
-  const image = useCanvasStore((state) => state.image)
+  const loadImages = useCanvasStore((state) => state.loadImages)
+  const images = useCanvasStore((state) => state.images)
+  const activeImageId = useCanvasStore((state) => state.activeImageId)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
-  const { exportImage, isExporting, canShare } = useExportImage()
+  const clearAllImages = useCanvasStore((state) => state.clearAllImages)
+  const { exportImage, exportAllImages, isExporting, canShare } = useExportImage()
   const [error, setError] = useState<string | null>(null)
 
+  const hasImages = images.length > 0
+  const hasMultipleImages = images.length > 1
+
+  // Handle file drops - supports multiple files
   const handleFiles = useCallback(
     async (files: File[]) => {
-      const file = files[0]
-      if (!file) return
+      if (files.length === 0) return
+
       try {
         setError(null)
-        await loadImage(file)
+        await loadImages(files)
       } catch (err) {
         setError((err as Error).message)
       }
     },
-    [loadImage]
+    [loadImages]
   )
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: { 'image/*': [] },
-    multiple: false,
+    multiple: true,
     onDropAccepted: handleFiles,
-    onDropRejected: () => setError('Unsupported file. Please drop a single image.'),
+    onDropRejected: () => setError('Unsupported file type. Please drop image files.'),
     noClick: true,
     noKeyboard: true,
   })
 
-  const isReady = Boolean(image) && !isExporting
+  const handleExport = async () => {
+    if (hasMultipleImages) {
+      await exportAllImages()
+    } else {
+      await exportImage()
+    }
+  }
+
+  const isReady = hasImages && activeImageId && !isExporting
 
   return (
     <div
       {...getRootProps()}
-      className={`fixed bottom-0 left-0 right-0 z-20 flex flex-wrap items-center gap-3 rounded-3xl border border-white/10 bg-canvas-control/80 p-3 text-xs backdrop-blur transition ${
+      className={`fixed bottom-0 left-0 right-0 z-20 rounded-t-3xl border border-white/10 bg-canvas-control/90 backdrop-blur transition ${
         isDragActive ? 'bg-white/10' : ''
       }`}
     >
       <input {...getInputProps()} />
-      
-      {/* Import Button */}
-      <button
-        type="button"
-        onClick={open}
-        className="rounded-full border border-white/20 bg-white/5 px-4 py-2 font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
-      >
-        {image ? 'Replace' : 'Import'}
-      </button>
 
-      {/* Toggles */}
-      <ToolbarToggle
-        label="Center Snap"
-        active={centerSnap}
-        onClick={() => setCenterSnap(!centerSnap)}
-      />
-
-      {/* Export Button */}
-      <button
-        type="button"
-        onClick={exportImage}
-        disabled={!isReady}
-        className={`ml-auto rounded-full px-5 py-2 font-semibold transition ${
-          isReady
-            ? 'bg-white text-black hover:bg-slate-100'
-            : 'bg-white/10 text-slate-500 cursor-not-allowed'
-        }`}
-      >
-        {isExporting ? 'Exporting…' : canShare ? 'Share' : 'Export'}
-      </button>
-
-      {/* Error message */}
-      {error && (
-        <span className="w-full text-xs text-rose-400">{error}</span>
+      {/* Filmstrip queue */}
+      {hasImages && (
+        <div className="px-3 pt-3 pb-1 border-b border-white/5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-slate-400">
+              {images.length} image{images.length !== 1 ? 's' : ''}
+            </span>
+            {hasMultipleImages && (
+              <button
+                type="button"
+                onClick={clearAllImages}
+                className="text-xs text-rose-400 hover:text-rose-300 transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          <ImageQueue onAddMore={open} />
+        </div>
       )}
+
+      {/* Action bar */}
+      <div className="flex flex-wrap items-center gap-3 p-3 text-xs">
+        {/* Import Button */}
+        <button
+          type="button"
+          onClick={open}
+          className="rounded-full border border-white/20 bg-white/5 px-4 py-2 font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+        >
+          {hasImages ? 'Add More' : 'Import'}
+        </button>
+
+        {/* Toggles */}
+        <ToolbarToggle
+          label="Center Snap"
+          active={centerSnap}
+          onClick={() => setCenterSnap(!centerSnap)}
+        />
+
+        {/* Export Button */}
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={!isReady}
+          className={`ml-auto rounded-full px-5 py-2 font-semibold transition ${
+            isReady
+              ? 'bg-white text-black hover:bg-slate-100'
+              : 'bg-white/10 text-slate-500 cursor-not-allowed'
+          }`}
+        >
+          {isExporting
+            ? 'Exporting…'
+            : hasMultipleImages
+            ? `Export All (${images.length})`
+            : canShare
+            ? 'Share'
+            : 'Export'}
+        </button>
+      </div>
+
+      {/* Error/status messages */}
+      {error && <div className="px-3 pb-2 text-xs text-rose-400">{error}</div>}
       {isDragActive && (
-        <span className="w-full text-xs text-white">Drop image to import</span>
+        <div className="px-3 pb-2 text-xs text-white">Drop images to add to queue</div>
       )}
     </div>
   )
@@ -106,4 +152,3 @@ const ToolbarToggle = ({
     {label}
   </button>
 )
-
