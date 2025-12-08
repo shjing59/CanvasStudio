@@ -5,7 +5,8 @@ CanvasStudio is a production-ready Vite + React (TS) application that recreates 
 ## B. Feature List
 
 - **Image ingestion**
-  - Drag-and-drop or manual upload (single file, any image mime type).
+  - Drag-and-drop or manual upload (supports multiple files, ready for filmstrip queue).
+  - Each image gets a unique ID for queue management.
   - Reads and surfaces key EXIF tags (e.g., camera model).
   - Caches an `HTMLImageElement` to keep the original resolution for export.
 - **Canvas ratios**
@@ -29,6 +30,7 @@ CanvasStudio is a production-ready Vite + React (TS) application that recreates 
   - Quality presets (100%, 90%, 80%) plus custom slider (50–100%).
   - Resolution: Uses base dimensions derived from image width and selected ratio.
   - Coordinate transformation scales preview space to export space uniformly.
+  - Pure export functions ready for batch export (`exportSingleImage`, `exportMultipleImages`).
 - **UI & layout**
   - Canvas centered with responsive scaling (min 240px, max 1400px width).
   - Control panel on the right with collapsible drawer.
@@ -69,15 +71,16 @@ src/
       math.ts                  # computeFitScale, computeDefaultScale, clamp
       ratios.ts                # Ratio catalog + findRatioValue helper
       render.ts                # Single draw routine for preview/export
+      transform.ts             # Pure transform functions (computeInitialTransform, etc.)
     export/
-      exportCanvas.ts          # Export pipeline with coordinate transformation
+      exportCanvas.ts          # Export pipeline (exportComposite, exportSingleImage, exportMultipleImages)
     image/
-      loadImage.ts             # EXIF parsing + image loader
+      loadImage.ts             # EXIF parsing + image loader (loadImageFromFile, loadImagesFromFiles)
   state/
     canvasStore.ts             # Zustand store (single source of truth)
   types/
     canvas.ts                  # Canvas-related types (ratios, borders, transform)
-    image.ts                   # ImageMetadata type
+    image.ts                   # ImageMetadata, ImageState types
 ```
 
 Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.config.js`, `postcss.config.js`, `vite.config.ts`.
@@ -88,34 +91,53 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 
 2. **Three-layer architecture** – Workspace (checkerboard background, never exported) → Canvas (white rectangle, export area) → ImageLayer (user-imported image, draggable/scalable).
 
-3. **Single source of truth for scaling** – The store controls all scale initialization via `_needsInitialFit` flag and `fitImageToPreview()`. ImageLayer is a pure display component that never calculates or initializes scale.
+3. **Single source of truth for scaling** – The store controls all scale initialization via `_needsInitialFit` flag and `fitCurrentImageToPreview()`. ImageLayer is a pure display component that never calculates or initializes scale.
 
-4. **Centralized constants** – All magic numbers live in `lib/canvas/constants.ts`:
+4. **Pure transform functions** – `lib/canvas/transform.ts` contains stateless functions that work with any image:
+   - `computeInitialTransform(image, canvasWidth, canvasHeight)` – Calculate initial fit transform
+   - `createImageSnapshot(params)` – Create export snapshot for any image
+   - `applySnapToTransform(transform, centerSnap)` – Apply center snapping
+   - `mergeTransform(current, partial)` – Merge transform updates
+   - `applyPositionDelta(transform, delta)` – Apply position changes
+
+5. **Centralized constants** – All magic numbers live in `lib/canvas/constants.ts`:
    - `SCALE.DEFAULT_MULTIPLIER = 0.95` (95% of fit)
    - `SCALE.MIN = 0.05`, `SCALE.MAX = 8`
    - `CANVAS.DEFAULT_BASE_WIDTH = 1600`
    - `RESIZE.ASPECT_RATIO_THRESHOLD = 0.01` (triggers refit on ratio change)
    - `SNAP.THRESHOLD = 2` (pixels for center snapping)
 
-5. **Predictable initialization flow**:
-   1. `loadImage()` → stores image, sets `_needsInitialFit: true`
+6. **Predictable initialization flow**:
+   1. `loadImage()` → stores image with unique ID, sets `_needsInitialFit: true`
    2. Canvas renders → reports size via `setPreviewSize()`
-   3. `setPreviewSize()` → if `_needsInitialFit`, calls `fitImageToPreview()`
+   3. `setPreviewSize()` → if `_needsInitialFit`, calls `fitCurrentImageToPreview()`
    4. ImageLayer → pure render, reads state only
 
-6. **Two coordinate systems**:
+7. **Two coordinate systems**:
    - **Preview space**: Actual screen pixels (responsive to window size)
    - **Export space**: Fixed resolution based on image dimensions and ratio
    - Export transforms preview coordinates to export coordinates uniformly
 
-7. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
+8. **Separation of canvas settings vs image state** – Store cleanly separates:
+   - **CanvasSettings**: ratioId, customRatio, background, centerSnap, exportOptions, previewSize (shared across all images)
+   - **ActiveImageState**: image, transform, _needsInitialFit (per-image in future filmstrip queue)
 
-8. **Modular controls** – Each concern (import, ratio, transform, background, export) lives in its own component.
+9. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
 
-9. **Pointer-based gestures** – Direct pointer event handling for drag/zoom provides precise control.
+10. **Modular controls** – Each concern (import, ratio, transform, background, export) lives in its own component.
+
+11. **Pointer-based gestures** – Direct pointer event handling for drag/zoom provides precise control.
+
+12. **Extensible for filmstrip queue** – Architecture is ready for multi-image support:
+    - `ImageMetadata` has unique `id` field
+    - `ImageState` type bundles image + transform + isEdited flag
+    - `loadImagesFromFiles()` can load multiple images
+    - `exportSingleImage()` / `exportMultipleImages()` for batch export
+    - Dropzone accepts multiple files
 
 ## E. Roadmap
 
+- **Filmstrip queue** – Multi-image import with thumbnail strip, per-image transforms, batch export.
 - **Filters & adjustments** – Integrate GPU-accelerated filters (WebGL or Canvas2D) with stackable adjustment layers.
 - **Cropping modes** – Add explicit crop handles separate from canvas ratios to isolate subject framing.
 - **Multi-background system** – Extend background picker with gradients, textures, and color palettes tied to brand presets.
@@ -128,19 +150,21 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 - TypeScript-first, strict typing for every exported helper.
 - Tailwind utility classes for layout; shared colors live in `tailwind.config.js`.
 - Constants extracted to `lib/canvas/constants.ts` – no magic numbers in components.
+- Pure functions in `lib/` – stateless, testable, reusable with any data.
 - Kommentar policy: concise top-of-module or block comments for every major subsystem.
 - Zustand setters must remain pure (returning new slices) to keep time-travel/debugging reliable.
-- Reuse helpers (e.g., `computeFitScale`, `renderScene`) everywhere to avoid drift between preview/export.
+- Reuse helpers (e.g., `computeFitScale`, `renderScene`, `createImageSnapshot`) everywhere to avoid drift between preview/export.
 - Components should be pure display; all state logic belongs in the store.
 
 ## G. How to Contribute / Extend
 
 1. **Install & run** – `yarn`, `yarn dev`.
-2. **Add features** – Drop new logic under `lib/` or `state/` first, then bind UI.
+2. **Add features** – Drop new logic under `lib/` as pure functions first, then bind to store/UI.
 3. **Add constants** – New magic numbers go in `lib/canvas/constants.ts`.
-4. **Update docs** – Every feature change requires touching this file plus README when workflow changes.
-5. **Testing** – Run `yarn build` before opening a PR to ensure TypeScript + Vite succeed.
-6. **Accessibility & performance** – Favor keyboard access, memoized selectors, and defer heavyweight work off the main render.
+4. **Add types** – New data structures go in `types/` with clear documentation.
+5. **Update docs** – Every feature change requires touching this file plus README when workflow changes.
+6. **Testing** – Run `yarn build` before opening a PR to ensure TypeScript + Vite succeed.
+7. **Accessibility & performance** – Favor keyboard access, memoized selectors, and defer heavyweight work off the main render.
 
 ---
 

@@ -12,13 +12,17 @@ export const BottomToolbar = () => {
   const { exportImage, isExporting, canShare } = useExportImage()
   const [error, setError] = useState<string | null>(null)
 
+  // Handle files - ready for multiple files but currently uses first one
+  // When filmstrip queue is implemented, this will add all files to the queue
   const handleFiles = useCallback(
     async (files: File[]) => {
-      const file = files[0]
-      if (!file) return
+      if (files.length === 0) return
+      
       try {
         setError(null)
-        await loadImage(file)
+        // Currently loads first file only (backwards compatible)
+        // Future: Add all files to queue
+        await loadImage(files[0])
       } catch (err) {
         setError((err as Error).message)
       }
@@ -28,9 +32,10 @@ export const BottomToolbar = () => {
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: { 'image/*': [] },
-    multiple: false,
+    // Ready for multiple files - filmstrip queue will process all
+    multiple: true,
     onDropAccepted: handleFiles,
-    onDropRejected: () => setError('Unsupported file. Please drop a single image.'),
+    onDropRejected: () => setError('Unsupported file type. Please drop image files.'),
     noClick: true,
     noKeyboard: true,
   })
@@ -81,7 +86,7 @@ export const BottomToolbar = () => {
         <span className="w-full text-xs text-rose-400">{error}</span>
       )}
       {isDragActive && (
-        <span className="w-full text-xs text-white">Drop image to import</span>
+        <span className="w-full text-xs text-white">Drop images to import</span>
       )}
     </div>
   )
@@ -106,4 +111,3 @@ const ToolbarToggle = ({
     {label}
   </button>
 )
-

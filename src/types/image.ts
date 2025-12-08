@@ -1,4 +1,10 @@
+import type { TransformState } from './canvas'
+
 export interface ImageMetadata {
+  /**
+   * Unique identifier for queue management.
+   */
+  id: string
   /**
    * Base64 source for preview & export.
    */
@@ -29,3 +35,13 @@ export interface ImageMetadata {
   element: HTMLImageElement
 }
 
+/**
+ * Bundles an image with its positioning state.
+ * Each image in the queue has its own transform.
+ */
+export interface ImageState {
+  image: ImageMetadata
+  transform: TransformState
+  /** Track if user manually adjusted position/scale */
+  isEdited: boolean
+}

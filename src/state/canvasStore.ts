@@ -1,7 +1,14 @@
 import { create } from 'zustand'
 import { DEFAULT_RATIO_ID, findRatioValue } from '../lib/canvas/ratios'
-import { SCALE, CANVAS, RESIZE, SNAP } from '../lib/canvas/constants'
-import { clamp, computeFitScale, computeDefaultScale } from '../lib/canvas/math'
+import { SCALE, CANVAS, RESIZE } from '../lib/canvas/constants'
+import { clamp, computeFitScale } from '../lib/canvas/math'
+import {
+  computeInitialTransform,
+  applySnapToTransform,
+  createImageSnapshot,
+  mergeTransform,
+  applyPositionDelta,
+} from '../lib/canvas/transform'
 import { loadImageFromFile } from '../lib/image/loadImage'
 import type {
   BorderSetting,
@@ -14,58 +21,78 @@ import type { ImageMetadata } from '../types/image'
 
 type BorderKey = 'top' | 'bottom'
 
-export interface CanvasStoreState {
-  image?: ImageMetadata
+// ============================================================================
+// CANVAS SETTINGS (shared across all images in future filmstrip)
+// ============================================================================
+interface CanvasSettings {
   ratioId: RatioOptionId
   customRatio: { width: number; height: number }
-  transform: TransformState
-  borders: Record<BorderKey, BorderSetting>
-  centerSnap: boolean
   background: string
-  previewSize: { width: number; height: number } | null
+  centerSnap: boolean
   exportOptions: ExportOptions
+  previewSize: { width: number; height: number } | null
+  borders: Record<BorderKey, BorderSetting>
+}
+
+// ============================================================================
+// ACTIVE IMAGE STATE (will become per-image in filmstrip queue)
+// ============================================================================
+interface ActiveImageState {
+  image?: ImageMetadata
+  transform: TransformState
   /** Internal flag: when true, next setPreviewSize will fit the image */
   _needsInitialFit: boolean
+}
+
+// ============================================================================
+// COMBINED STORE STATE
+// ============================================================================
+export interface CanvasStoreState extends CanvasSettings, ActiveImageState {
+  // Image actions
   loadImage: (file: File) => Promise<void>
+  
+  // Ratio actions
   setRatio: (id: RatioOptionId) => void
   setCustomRatio: (payload: { width: number; height: number }) => void
+  
+  // Transform actions
   updateTransform: (transform: Partial<TransformState>) => void
   nudgePosition: (delta: { x: number; y: number }) => void
   adjustScale: (factor: number) => void
   setScale: (value: number) => void
-  setCenterSnap: (value: boolean) => void
   resetTransform: () => void
-  setBorders: (payload: Partial<Record<BorderKey, BorderSetting>>) => void
   fitImageToCanvas: () => void
+  
+  // Settings actions
+  setCenterSnap: (value: boolean) => void
+  setBorders: (payload: Partial<Record<BorderKey, BorderSetting>>) => void
   setBackground: (value: string) => void
   setPreviewSize: (size: { width: number; height: number }) => void
   setExportOptions: (options: Partial<ExportOptions>) => void
+  
+  // Snapshot for export
   snapshot: () => CanvasSnapshot
 }
 
 const initialBorder: BorderSetting = { value: 0, unit: 'px' }
 
 // ============================================================================
-// INTERNAL HELPERS (not exported, called only within store)
+// INTERNAL HELPERS
 // ============================================================================
 
 /**
- * Fits the image to the current preview canvas size.
- * This is the SINGLE source of truth for scale initialization.
+ * Fits the current image to the current preview canvas size.
+ * Uses pure function internally.
  */
-function fitImageToPreview(): void {
+function fitCurrentImageToPreview(): void {
   const state = useCanvasStore.getState()
   if (!state.image || !state.previewSize) return
 
   const { width: canvasW, height: canvasH } = state.previewSize
-  const defaultScale = computeDefaultScale(state.image, canvasW, canvasH)
+  const initialTransform = computeInitialTransform(state.image, canvasW, canvasH)
 
   useCanvasStore.setState({
-    transform: {
-      x: 0,
-      y: 0,
-      scale: defaultScale,
-    },
+    transform: initialTransform,
     _needsInitialFit: false,
   })
 }
@@ -98,35 +125,31 @@ function getRatioValue(state: CanvasStoreState): number {
   return findRatioValue(state.ratioId, { custom: state.customRatio, image: state.image })
 }
 
-/**
- * Applies center snapping to transform if enabled.
- */
-function applySnap(transform: TransformState, centerSnap: boolean): TransformState {
-  if (!centerSnap) return transform
-  return {
-    ...transform,
-    x: Math.abs(transform.x) < SNAP.THRESHOLD ? 0 : transform.x,
-    y: Math.abs(transform.y) < SNAP.THRESHOLD ? 0 : transform.y,
-  }
-}
-
 // ============================================================================
 // STORE
 // ============================================================================
 
 export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
+  // Canvas settings (shared)
   ratioId: DEFAULT_RATIO_ID,
   customRatio: { width: 4, height: 5 },
-  transform: { x: 0, y: 0, scale: 1 },
+  background: '#ffffff',
+  centerSnap: true,
+  exportOptions: { format: 'png', quality: 1 },
+  previewSize: null,
   borders: {
     top: { ...initialBorder },
     bottom: { ...initialBorder },
   },
-  centerSnap: true,
-  background: '#ffffff',
-  previewSize: null,
-  exportOptions: { format: 'png', quality: 1 },
+
+  // Active image state
+  image: undefined,
+  transform: { x: 0, y: 0, scale: 1 },
   _needsInitialFit: false,
+
+  // ========================================================================
+  // IMAGE ACTIONS
+  // ========================================================================
 
   async loadImage(file: File) {
     const image = await loadImageFromFile(file)
@@ -141,11 +164,14 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
 
     // If preview size already known, fit immediately
     if (state.previewSize) {
-      // Need to get fresh state after set
-      fitImageToPreview()
+      fitCurrentImageToPreview()
     }
     // Otherwise, setPreviewSize will handle it when Canvas reports size
   },
+
+  // ========================================================================
+  // RATIO ACTIONS
+  // ========================================================================
 
   setRatio(id) {
     const state = get()
@@ -179,21 +205,21 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     }
   },
 
-  updateTransform(transform) {
+  // ========================================================================
+  // TRANSFORM ACTIONS
+  // ========================================================================
+
+  updateTransform(partial) {
     set((state) => {
-      const merged = { ...state.transform, ...transform }
-      return { transform: applySnap(merged, state.centerSnap) }
+      const merged = mergeTransform(state.transform, partial)
+      return { transform: applySnapToTransform(merged, state.centerSnap) }
     })
   },
 
   nudgePosition(delta) {
     set((state) => {
-      const moved = {
-        ...state.transform,
-        x: state.transform.x + delta.x,
-        y: state.transform.y + delta.y,
-      }
-      return { transform: applySnap(moved, state.centerSnap) }
+      const moved = applyPositionDelta(state.transform, delta)
+      return { transform: applySnapToTransform(moved, state.centerSnap) }
     })
   },
 
@@ -210,23 +236,26 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     }))
   },
 
-  setCenterSnap(value) {
-    set({ centerSnap: value })
+  resetTransform() {
+    fitCurrentImageToPreview()
   },
 
-  resetTransform() {
-    fitImageToPreview()
+  fitImageToCanvas() {
+    fitCurrentImageToPreview()
+  },
+
+  // ========================================================================
+  // SETTINGS ACTIONS
+  // ========================================================================
+
+  setCenterSnap(value) {
+    set({ centerSnap: value })
   },
 
   setBorders(payload) {
     set((state) => ({
       borders: { ...state.borders, ...payload },
     }))
-    // Note: Border changes no longer auto-refit the image
-  },
-
-  fitImageToCanvas() {
-    fitImageToPreview()
   },
 
   setBackground(value) {
@@ -241,13 +270,13 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
 
     // Case 1: We have a pending fit (new image or ratio change)
     if (state._needsInitialFit && state.image) {
-      fitImageToPreview()
+      fitCurrentImageToPreview()
       return
     }
 
     // Case 2: First time getting size with an existing image (shouldn't happen normally)
     if (!oldSize && state.image) {
-      fitImageToPreview()
+      fitCurrentImageToPreview()
       return
     }
 
@@ -256,7 +285,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       const oldAspect = oldSize.width / oldSize.height
       const newAspect = size.width / size.height
       if (Math.abs(newAspect - oldAspect) > RESIZE.ASPECT_RATIO_THRESHOLD) {
-        fitImageToPreview()
+        fitCurrentImageToPreview()
         return
       }
     }
@@ -277,8 +306,27 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     }))
   },
 
+  // ========================================================================
+  // SNAPSHOT
+  // ========================================================================
+
   snapshot() {
     const state = get()
+    
+    // Use pure function if image exists
+    if (state.image && state.previewSize) {
+      return createImageSnapshot({
+        image: state.image,
+        transform: state.transform,
+        canvasWidth: state.previewSize.width,
+        canvasHeight: state.previewSize.height,
+        background: state.background,
+        ratioId: state.ratioId,
+        customRatio: state.customRatio,
+      })
+    }
+    
+    // Fallback for no image
     return {
       image: state.image,
       transform: state.transform,
@@ -298,3 +346,19 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
 export const selectDimensions = deriveDimensions
 export const selectRatioValue = getRatioValue
 export const selectFitScale = getFitScaleFromState
+
+// ============================================================================
+// EXPORTED CANVAS SETTINGS SELECTOR (for future filmstrip)
+// ============================================================================
+
+export function selectCanvasSettings(state: CanvasStoreState): CanvasSettings {
+  return {
+    ratioId: state.ratioId,
+    customRatio: state.customRatio,
+    background: state.background,
+    centerSnap: state.centerSnap,
+    exportOptions: state.exportOptions,
+    previewSize: state.previewSize,
+    borders: state.borders,
+  }
+}

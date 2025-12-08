@@ -1,11 +1,17 @@
-import type { CanvasSnapshot, ExportOptions } from '../../types/canvas'
+import type { CanvasSnapshot, ExportOptions, RatioOptionId, TransformState } from '../../types/canvas'
+import type { ImageMetadata } from '../../types/image'
+import { createImageSnapshot } from '../canvas/transform'
 import { renderScene } from '../canvas/render'
 
-interface ExportResponse {
+export interface ExportResponse {
   blob: Blob
   fileName: string
 }
 
+/**
+ * Export a canvas snapshot to an image blob.
+ * This is the core export function used by all export paths.
+ */
 export async function exportComposite(
   snapshot: CanvasSnapshot,
   options: ExportOptions
@@ -83,7 +89,69 @@ export async function exportComposite(
   }
 }
 
+/**
+ * Build the output filename from original name and format.
+ */
 const buildFileName = (base: string, format: ExportOptions['format']): string => {
   const clean = base.replace(/\.[^.]+$/, '')
   return `${clean || 'canvas'}-framed.${format === 'png' ? 'png' : 'jpg'}`
+}
+
+// ============================================================================
+// PURE EXPORT FUNCTIONS (for filmstrip queue)
+// ============================================================================
+
+/**
+ * Canvas settings needed for export.
+ */
+export interface ExportCanvasSettings {
+  background: string
+  ratioId: RatioOptionId
+  customRatio: { width: number; height: number }
+  previewSize: { width: number; height: number }
+  exportOptions: ExportOptions
+}
+
+/**
+ * Pure function: Export a single image with given transform and canvas settings.
+ * This doesn't depend on store state and can be used to export any image in the queue.
+ */
+export async function exportSingleImage(
+  image: ImageMetadata,
+  transform: TransformState,
+  settings: ExportCanvasSettings
+): Promise<ExportResponse> {
+  const snapshot = createImageSnapshot({
+    image,
+    transform,
+    canvasWidth: settings.previewSize.width,
+    canvasHeight: settings.previewSize.height,
+    background: settings.background,
+    ratioId: settings.ratioId,
+    customRatio: settings.customRatio,
+  })
+
+  return exportComposite(snapshot, settings.exportOptions)
+}
+
+/**
+ * Export multiple images with the same canvas settings.
+ * Returns array of export results.
+ */
+export async function exportMultipleImages(
+  images: Array<{ image: ImageMetadata; transform: TransformState }>,
+  settings: ExportCanvasSettings,
+  onProgress?: (completed: number, total: number) => void
+): Promise<ExportResponse[]> {
+  const results: ExportResponse[] = []
+  const total = images.length
+
+  for (let i = 0; i < images.length; i++) {
+    const { image, transform } = images[i]
+    const result = await exportSingleImage(image, transform, settings)
+    results.push(result)
+    onProgress?.(i + 1, total)
+  }
+
+  return results
 }
