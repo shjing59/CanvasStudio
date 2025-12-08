@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useCanvasStore } from '../../state/canvasStore'
+import { useCanvasStore, selectFitScale } from '../../state/canvasStore'
 import { PanelSection } from '../ui/PanelSection'
 import { ToggleButton } from '../ui/ToggleButton'
 
@@ -11,15 +11,11 @@ export const TransformPanel = () => {
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
   const previewSize = useCanvasStore((state) => state.previewSize)
-  const image = useCanvasStore((state) => state.image)
   const updateTransform = useCanvasStore((state) => state.updateTransform)
   const fitImageToCanvas = useCanvasStore((state) => state.fitImageToCanvas)
 
-  const fitScale = useMemo(() => {
-    if (!image || !previewSize) return null
-    if (!image.width || !image.height || !previewSize.width || !previewSize.height) return null
-    return Math.min(previewSize.width / image.width, previewSize.height / image.height)
-  }, [image, previewSize])
+  // Use the store's selector for fit scale (single source of truth)
+  const fitScale = useCanvasStore(selectFitScale)
 
   const scalePercent = useMemo(() => {
     if (!fitScale || fitScale === 0) return 0
@@ -51,8 +47,8 @@ export const TransformPanel = () => {
   }
 
   return (
-    <PanelSection 
-      title="2. Position & Scale" 
+    <PanelSection
+      title="2. Position & Scale"
       description="Drag to move. Wheel, pinch, or Shift + Drag to scale."
     >
       <div className="space-y-2">

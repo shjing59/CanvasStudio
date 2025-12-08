@@ -1,8 +1,17 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { RATIO_PRESETS } from '../../lib/canvas/ratios'
+import { CUSTOM_RATIO } from '../../lib/canvas/constants'
 import { useCanvasStore } from '../../state/canvasStore'
 import { PanelSection } from '../ui/PanelSection'
 import { PresetButtons } from '../ui/PresetButtons'
+
+/**
+ * Validates and clamps a custom ratio value to safe bounds.
+ */
+function validateRatioValue(value: number): number {
+  if (isNaN(value) || !isFinite(value)) return CUSTOM_RATIO.MIN
+  return Math.max(CUSTOM_RATIO.MIN, Math.min(CUSTOM_RATIO.MAX, Math.round(value)))
+}
 
 // Switches between preset, original, and custom canvas ratios.
 export const RatioPanel = () => {
@@ -20,9 +29,25 @@ export const RatioPanel = () => {
     [image]
   )
 
+  const handleWidthChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = validateRatioValue(Number(e.target.value))
+      setCustomRatio({ width: value, height: customRatio.height })
+    },
+    [customRatio.height, setCustomRatio]
+  )
+
+  const handleHeightChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = validateRatioValue(Number(e.target.value))
+      setCustomRatio({ width: customRatio.width, height: value })
+    },
+    [customRatio.width, setCustomRatio]
+  )
+
   return (
-    <PanelSection 
-      title="1. Canvas Ratio" 
+    <PanelSection
+      title="1. Canvas Ratio"
       description="Switch instantly while preserving layout"
     >
       <PresetButtons
@@ -35,11 +60,10 @@ export const RatioPanel = () => {
           <span className="text-slate-400">Custom width</span>
           <input
             type="number"
-            min={1}
+            min={CUSTOM_RATIO.MIN}
+            max={CUSTOM_RATIO.MAX}
             value={customRatio.width}
-            onChange={(event) =>
-              setCustomRatio({ width: Number(event.target.value), height: customRatio.height })
-            }
+            onChange={handleWidthChange}
             className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
           />
         </label>
@@ -47,17 +71,16 @@ export const RatioPanel = () => {
           <span className="text-slate-400">Custom height</span>
           <input
             type="number"
-            min={1}
+            min={CUSTOM_RATIO.MIN}
+            max={CUSTOM_RATIO.MAX}
             value={customRatio.height}
-            onChange={(event) =>
-              setCustomRatio({ width: customRatio.width, height: Number(event.target.value) })
-            }
+            onChange={handleHeightChange}
             className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
           />
         </label>
       </div>
       <p className="text-xs text-slate-500">
-        Custom values auto-apply once both width and height are defined.
+        Custom values auto-apply once both width and height are defined (range: {CUSTOM_RATIO.MIN}-{CUSTOM_RATIO.MAX}).
       </p>
     </PanelSection>
   )

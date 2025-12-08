@@ -20,11 +20,13 @@ export async function exportComposite(
   const targetHeight = snapshot.dimensions.baseHeight
 
   // Calculate scale factor from preview to export dimensions
-  // This scales the transform coordinates from preview space to export space
+  // Use uniform scale factor to maintain proportions correctly
   const previewWidth = snapshot.previewSize?.width ?? targetWidth
   const previewHeight = snapshot.previewSize?.height ?? targetHeight
-  const widthScale = targetWidth / previewWidth
-  const heightScale = targetHeight / previewHeight
+
+  // Since both preview and export maintain the same aspect ratio,
+  // we use uniform scaling to transform coordinates correctly
+  const scaleFactor = targetWidth / previewWidth
 
   const canvas = document.createElement('canvas')
   // Export at exact resolution - no DPR multiplier for consistent file sizes
@@ -34,25 +36,25 @@ export async function exportComposite(
   if (!ctx) {
     throw new Error('Unable to prepare export context.')
   }
-  // No DPR scaling needed for export
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
   // Render only the canvas + image (workspace is never exported)
+  // Transform coordinates from preview space to export space
   renderScene({
     ctx,
     width: targetWidth,
     height: targetHeight,
     background: snapshot.background,
     transform: {
-      x: snapshot.transform.x * widthScale,
-      y: snapshot.transform.y * heightScale,
-      // Scale the transform scale by the same factor to maintain visual appearance
-      // When export canvas is larger than preview, the scale needs to be proportionally larger
-      scale: snapshot.transform.scale * widthScale,
+      // Position offset scales uniformly
+      x: snapshot.transform.x * scaleFactor,
+      y: snapshot.transform.y * scaleFactor,
+      // Scale also scales uniformly to maintain visual appearance
+      scale: snapshot.transform.scale * scaleFactor,
     },
     borders: {
-      top: 0, // Borders are not used in the new architecture
+      top: 0,
       bottom: 0,
     },
     image: snapshot.image,
@@ -85,4 +87,3 @@ const buildFileName = (base: string, format: ExportOptions['format']): string =>
   const clean = base.replace(/\.[^.]+$/, '')
   return `${clean || 'canvas'}-framed.${format === 'png' ? 'png' : 'jpg'}`
 }
-

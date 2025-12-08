@@ -1,14 +1,12 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode, forwardRef, useImperativeHandle } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
+import { CANVAS } from '../../lib/canvas/constants'
 
 interface CanvasProps {
   aspectRatio: number // width / height
   children: ReactNode
   onSizeChange?: (size: { width: number; height: number }) => void
 }
-
-const MIN_CANVAS_WIDTH = 240
-const MAX_CANVAS_WIDTH = 1400
 
 /**
  * Canvas component - white rectangle representing the export area.
@@ -41,11 +39,11 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
 
   const canvasSize = useMemo(() => {
     // Use viewport dimensions for responsive sizing (leave some margin)
-    const availableWidth = windowSize.width > 0 ? windowSize.width * 0.8 : MIN_CANVAS_WIDTH
-    const availableHeight = windowSize.height > 0 ? windowSize.height * 0.8 : MIN_CANVAS_WIDTH / aspectRatio
+    const availableWidth = windowSize.width > 0 ? windowSize.width * 0.8 : CANVAS.MIN_WIDTH
+    const availableHeight = windowSize.height > 0 ? windowSize.height * 0.8 : CANVAS.MIN_WIDTH / aspectRatio
 
     // Calculate width that fits within available space while maintaining aspect ratio
-    let width = Math.min(availableWidth, MAX_CANVAS_WIDTH)
+    let width = Math.min(availableWidth, CANVAS.MAX_WIDTH)
     let height = width / aspectRatio
 
     // If height exceeds available space, scale down
@@ -55,8 +53,8 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
     }
 
     // Ensure minimum size
-    if (width < MIN_CANVAS_WIDTH) {
-      width = MIN_CANVAS_WIDTH
+    if (width < CANVAS.MIN_WIDTH) {
+      width = CANVAS.MIN_WIDTH
       height = width / aspectRatio
     }
 
@@ -84,4 +82,3 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
     </div>
   )
 })
-
