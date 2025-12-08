@@ -6,7 +6,6 @@ import { ToggleButton } from '../ui/ToggleButton'
 // Gives fine-grained control over scale toggles + center snapping + reset flows.
 export const TransformPanel = () => {
   const transform = useCanvasStore((state) => state.transform)
-  const adjustScale = useCanvasStore((state) => state.adjustScale)
   const resetTransform = useCanvasStore((state) => state.resetTransform)
   const centerSnap = useCanvasStore((state) => state.centerSnap)
   const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
@@ -27,6 +26,12 @@ export const TransformPanel = () => {
     if (!fitScale) return
     const actualScale = Math.max(0.01, fitScale * (1 + value / 100))
     updateTransform({ scale: actualScale })
+  }
+
+  // Fixed 1% step for zoom buttons (consistent with slider)
+  const handleZoomStep = (step: number) => {
+    const newPercent = Math.max(-100, Math.min(100, scalePercent + step))
+    handleScalePercentChange(newPercent)
   }
 
   const positionSlider = useMemo(() => {
@@ -124,14 +129,14 @@ export const TransformPanel = () => {
       <div className="flex flex-wrap gap-2 text-xs">
         <button
           type="button"
-          onClick={() => adjustScale(1.05)}
+          onClick={() => handleZoomStep(1)}
           className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40"
         >
           + Zoom
         </button>
         <button
           type="button"
-          onClick={() => adjustScale(0.95)}
+          onClick={() => handleZoomStep(-1)}
           className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40"
         >
           − Zoom
