@@ -4,7 +4,7 @@
  */
 
 import type { ImageMetadata } from '../../types/image'
-import type { TransformState, CanvasSnapshot, RatioOptionId } from '../../types/canvas'
+import type { TransformState, CanvasSnapshot, RatioOptionId, CropState } from '../../types/canvas'
 import { computeDefaultScale, computeFitScale } from './math'
 import { findRatioValue } from './ratios'
 import { SNAP } from './constants'
@@ -55,13 +55,14 @@ export function applySnapToTransform(
 export function createImageSnapshot(params: {
   image: ImageMetadata
   transform: TransformState
+  crop: CropState | null
   canvasWidth: number
   canvasHeight: number
   background: string
   ratioId: RatioOptionId
   customRatio: { width: number; height: number }
 }): CanvasSnapshot {
-  const { image, transform, canvasWidth, canvasHeight, background, ratioId, customRatio } = params
+  const { image, transform, crop, canvasWidth, canvasHeight, background, ratioId, customRatio } = params
   const ratio = findRatioValue(ratioId, { custom: customRatio, image })
   const baseWidth = image.width
   const baseHeight = baseWidth / ratio
@@ -69,6 +70,7 @@ export function createImageSnapshot(params: {
   return {
     image,
     transform,
+    crop,
     borders: { top: { value: 0, unit: 'px' }, bottom: { value: 0, unit: 'px' } },
     background,
     dimensions: { baseWidth, baseHeight, ratio },

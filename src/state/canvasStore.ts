@@ -13,6 +13,7 @@ import { loadImageFromFile, loadImagesFromFiles } from '../lib/image/loadImage'
 import type {
   BorderSetting,
   CanvasSnapshot,
+  CropState,
   ExportOptions,
   RatioOptionId,
   TransformState,
@@ -32,6 +33,8 @@ interface CanvasSettings {
   exportOptions: ExportOptions
   previewSize: { width: number; height: number } | null
   borders: Record<BorderKey, BorderSetting>
+  /** Whether crop mode is currently active */
+  cropMode: boolean
 }
 
 // ============================================================================
@@ -69,6 +72,13 @@ export interface CanvasStoreState extends CanvasSettings, ImageQueueState {
   setScale: (value: number) => void
   resetTransform: () => void
   fitImageToCanvas: () => void
+
+  // Crop actions (apply to active image)
+  setCrop: (crop: CropState | null) => void
+  updateCrop: (partial: Partial<CropState>) => void
+  resetCrop: () => void
+  toggleCropMode: () => void
+  setCropAspectLock: (lock: boolean, aspect?: number) => void
 
   // Settings actions
   setCenterSnap: (value: boolean) => void
@@ -175,6 +185,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     top: { ...initialBorder },
     bottom: { ...initialBorder },
   },
+  cropMode: false,
 
   // Image queue state
   images: [],
@@ -189,10 +200,11 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const image = await loadImageFromFile(file)
     const state = get()
 
-    // Create new image state with default transform
+    // Create new image state with default transform and no crop
     const newImageState: ImageState = {
       image,
       transform: { x: 0, y: 0, scale: 1 },
+      crop: null,
       isEdited: false,
     }
 
@@ -215,10 +227,11 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const images = await loadImagesFromFiles(files)
     const state = get()
 
-    // Create image states for all
+    // Create image states for all (with no crop)
     const newImageStates: ImageState[] = images.map((image) => ({
       image,
       transform: { x: 0, y: 0, scale: 1 },
+      crop: null,
       isEdited: false,
     }))
 
@@ -396,6 +409,101 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
 
   // ========================================================================
+  // CROP ACTIONS (apply to active image)
+  // ========================================================================
+
+  setCrop(crop: CropState | null) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        crop,
+        isEdited: true,
+      })),
+    })
+  },
+
+  updateCrop(partial: Partial<CropState>) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage || !activeImage.crop) return
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        crop: img.crop ? { ...img.crop, ...partial } : null,
+        isEdited: true,
+      })),
+    })
+  },
+
+  resetCrop() {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        crop: null,
+      })),
+      cropMode: false,
+    })
+  },
+
+  toggleCropMode() {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    
+    // Can only enter crop mode if there's an active image
+    if (!activeImage && !state.cropMode) return
+
+    const newCropMode = !state.cropMode
+
+    // When entering crop mode, initialize crop if not set
+    if (newCropMode && activeImage && !activeImage.crop) {
+      const defaultCrop: CropState = {
+        x: 0,
+        y: 0,
+        width: 1,
+        height: 1,
+        aspectLock: false,
+      }
+      set({
+        images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+          ...img,
+          crop: defaultCrop,
+        })),
+        cropMode: newCropMode,
+      })
+    } else {
+      set({ cropMode: newCropMode })
+    }
+  },
+
+  setCropAspectLock(lock: boolean, aspect?: number) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage || !activeImage.crop) return
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        crop: img.crop
+          ? {
+              ...img.crop,
+              aspectLock: lock,
+              lockedAspect: lock ? aspect : undefined,
+            }
+          : null,
+      })),
+    })
+  },
+
+  // ========================================================================
   // SETTINGS ACTIONS
   // ========================================================================
 
@@ -467,6 +575,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       return createImageSnapshot({
         image: activeImage.image,
         transform: activeImage.transform,
+        crop: activeImage.crop,
         canvasWidth: state.previewSize.width,
         canvasHeight: state.previewSize.height,
         background: state.background,
@@ -479,6 +588,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     return {
       image: undefined,
       transform: { x: 0, y: 0, scale: 1 },
+      crop: null,
       borders: state.borders,
       background: state.background,
       dimensions: deriveDimensions(state),
@@ -514,5 +624,6 @@ export function selectCanvasSettings(state: CanvasStoreState): CanvasSettings {
     exportOptions: state.exportOptions,
     previewSize: state.previewSize,
     borders: state.borders,
+    cropMode: state.cropMode,
   }
 }

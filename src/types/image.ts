@@ -1,4 +1,4 @@
-import type { TransformState } from './canvas'
+import type { TransformState, CropState } from './canvas'
 
 export interface ImageMetadata {
   /**
@@ -37,11 +37,13 @@ export interface ImageMetadata {
 
 /**
  * Bundles an image with its positioning state.
- * Each image in the queue has its own transform.
+ * Each image in the queue has its own transform and optional crop.
  */
 export interface ImageState {
   image: ImageMetadata
   transform: TransformState
+  /** Crop region in normalized coordinates, null = no crop (show full image) */
+  crop: CropState | null
   /** Track if user manually adjusted position/scale */
   isEdited: boolean
 }
