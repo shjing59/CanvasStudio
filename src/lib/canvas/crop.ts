@@ -142,12 +142,33 @@ export function cropToCanvasCoords(
 
 /**
  * Clamp crop region to stay within image bounds (0-1 range).
+ * When aspect is locked, maintains the aspect ratio while clamping by scaling uniformly.
  */
 export function clampCropToBounds(crop: CropState): CropState {
-  // Ensure dimensions are at least a minimum size
   const minSize = 0.05
-  const width = Math.max(minSize, Math.min(1, crop.width))
-  const height = Math.max(minSize, Math.min(1, crop.height))
+  let width = crop.width
+  let height = crop.height
+
+  // If aspect is locked, scale uniformly to maintain aspect ratio
+  if (crop.aspectLock && crop.lockedAspect) {
+    // Clamp maximum: scale down uniformly if either dimension exceeds 1
+    if (width > 1 || height > 1) {
+      const scale = Math.min(1 / width, 1 / height)
+      width = width * scale
+      height = height * scale
+    }
+    
+    // Clamp minimum: scale up uniformly if either dimension is below minSize
+    if (width < minSize || height < minSize) {
+      const scale = Math.max(minSize / width, minSize / height)
+      width = width * scale
+      height = height * scale
+    }
+  } else {
+    // Free aspect: clamp independently
+    width = Math.max(minSize, Math.min(1, width))
+    height = Math.max(minSize, Math.min(1, height))
+  }
 
   // Clamp position to keep crop within bounds
   const x = Math.max(0, Math.min(1 - width, crop.x))
@@ -158,12 +179,36 @@ export function clampCropToBounds(crop: CropState): CropState {
 
 /**
  * Resize crop from a specific handle while maintaining aspect ratio if locked.
+ * When aspect is locked, keeps the opposite corner/edge fixed as anchor point.
  * @param crop - Current crop state
  * @param handle - Which handle is being dragged ('nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w')
  * @param delta - Movement delta in normalized coordinates { dx, dy }
+ * @param imageAspect - The source image aspect ratio (width/height), needed for aspect-locked resize
  * @returns New crop state
  */
 export function resizeCropFromHandle(
+  crop: CropState,
+  handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w',
+  delta: { dx: number; dy: number },
+  imageAspect: number = 1
+): CropState {
+  if (!crop.aspectLock || !crop.lockedAspect) {
+    // Free resize - no aspect lock
+    return resizeCropFree(crop, handle, delta)
+  }
+
+  // Convert target pixel aspect to normalized aspect
+  // normalizedAspect = targetPixelAspect / imageAspect
+  const normalizedAspect = crop.lockedAspect / imageAspect
+
+  // Aspect-locked resize using normalized aspect
+  return resizeCropAspectLocked(crop, handle, delta, normalizedAspect)
+}
+
+/**
+ * Free resize without aspect ratio constraints.
+ */
+function resizeCropFree(
   crop: CropState,
   handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w',
   delta: { dx: number; dy: number }
@@ -171,7 +216,6 @@ export function resizeCropFromHandle(
   let { x, y, width, height } = crop
   const { dx, dy } = delta
 
-  // Apply delta based on handle position
   switch (handle) {
     case 'nw':
       x += dx
@@ -209,14 +253,156 @@ export function resizeCropFromHandle(
       break
   }
 
-  let newCrop: CropState = { ...crop, x, y, width, height }
+  return clampCropToBounds({ ...crop, x, y, width, height })
+}
 
-  // If aspect locked, constrain the resize
-  if (crop.aspectLock && crop.lockedAspect) {
-    newCrop = constrainCropToAspect(newCrop, crop.lockedAspect)
+/**
+ * Aspect-locked resize keeping opposite corner/edge as anchor.
+ * Uses a simple approach: calculate new size from the dragged edge/corner,
+ * then derive the other dimension from the aspect ratio.
+ */
+function resizeCropAspectLocked(
+  crop: CropState,
+  handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w',
+  delta: { dx: number; dy: number },
+  aspect: number
+): CropState {
+  const { dx, dy } = delta
+  
+  // Start with current dimensions
+  let newWidth = crop.width
+  let newHeight = crop.height
+  let newX = crop.x
+  let newY = crop.y
+  
+  // Determine how the handle affects each dimension
+  // For aspect-locked, we pick ONE dimension to drive the resize based on handle type
+  
+  switch (handle) {
+    case 'e':
+      // Right edge: width changes, height follows
+      newWidth = crop.width + dx
+      newHeight = newWidth / aspect
+      // Anchor: left edge (x stays), center vertically
+      newY = crop.y + (crop.height - newHeight) / 2
+      break
+      
+    case 'w':
+      // Left edge: width changes, height follows
+      newWidth = crop.width - dx
+      newHeight = newWidth / aspect
+      newX = crop.x + crop.width - newWidth
+      // Center vertically
+      newY = crop.y + (crop.height - newHeight) / 2
+      break
+      
+    case 's':
+      // Bottom edge: height changes, width follows
+      newHeight = crop.height + dy
+      newWidth = newHeight * aspect
+      // Anchor: top edge (y stays), center horizontally
+      newX = crop.x + (crop.width - newWidth) / 2
+      break
+      
+    case 'n':
+      // Top edge: height changes, width follows
+      newHeight = crop.height - dy
+      newWidth = newHeight * aspect
+      newY = crop.y + crop.height - newHeight
+      // Center horizontally
+      newX = crop.x + (crop.width - newWidth) / 2
+      break
+      
+    case 'se':
+      // Bottom-right corner: use combined delta, anchor top-left
+      {
+        const widthFromDx = crop.width + dx
+        const heightFromDy = crop.height + dy
+        const widthFromHeight = heightFromDy * aspect
+        
+        // Pick the dimension that gives smaller result (more restrictive)
+        if (widthFromDx < widthFromHeight) {
+          newWidth = Math.max(0.05, widthFromDx)
+          newHeight = newWidth / aspect
+        } else {
+          newHeight = Math.max(0.05, heightFromDy)
+          newWidth = newHeight * aspect
+        }
+        // Anchor: top-left (x, y stay)
+      }
+      break
+      
+    case 'sw':
+      // Bottom-left corner: anchor top-right
+      {
+        const widthFromDx = crop.width - dx
+        const heightFromDy = crop.height + dy
+        const widthFromHeight = heightFromDy * aspect
+        
+        if (widthFromDx < widthFromHeight) {
+          newWidth = Math.max(0.05, widthFromDx)
+          newHeight = newWidth / aspect
+        } else {
+          newHeight = Math.max(0.05, heightFromDy)
+          newWidth = newHeight * aspect
+        }
+        newX = crop.x + crop.width - newWidth
+        // y stays (top edge anchored)
+      }
+      break
+      
+    case 'ne':
+      // Top-right corner: anchor bottom-left
+      {
+        const widthFromDx = crop.width + dx
+        const heightFromDy = crop.height - dy
+        const widthFromHeight = heightFromDy * aspect
+        
+        if (widthFromDx < widthFromHeight) {
+          newWidth = Math.max(0.05, widthFromDx)
+          newHeight = newWidth / aspect
+        } else {
+          newHeight = Math.max(0.05, heightFromDy)
+          newWidth = newHeight * aspect
+        }
+        // x stays (left edge anchored)
+        newY = crop.y + crop.height - newHeight
+      }
+      break
+      
+    case 'nw':
+      // Top-left corner: anchor bottom-right
+      {
+        const widthFromDx = crop.width - dx
+        const heightFromDy = crop.height - dy
+        const widthFromHeight = heightFromDy * aspect
+        
+        if (widthFromDx < widthFromHeight) {
+          newWidth = Math.max(0.05, widthFromDx)
+          newHeight = newWidth / aspect
+        } else {
+          newHeight = Math.max(0.05, heightFromDy)
+          newWidth = newHeight * aspect
+        }
+        newX = crop.x + crop.width - newWidth
+        newY = crop.y + crop.height - newHeight
+      }
+      break
   }
-
-  return clampCropToBounds(newCrop)
+  
+  // Ensure positive dimensions
+  newWidth = Math.max(0.05, newWidth)
+  newHeight = Math.max(0.05, newHeight)
+  
+  // Preserve the original lockedAspect from the crop (which is the target pixel aspect)
+  // Don't overwrite with the normalized aspect used for calculations
+  return clampCropToBounds({
+    ...crop,
+    x: newX,
+    y: newY,
+    width: newWidth,
+    height: newHeight,
+  })
 }
 
 /**

@@ -103,11 +103,13 @@ export const CropOverlay = ({
         const newCrop = moveCrop(dragStart.crop, { dx: normalizedDx, dy: normalizedDy })
         setCrop(newCrop)
       } else {
-        // Resizing the crop
+        // Resizing the crop - pass image aspect ratio for proper aspect locking
+        const imageAspect = image.width / image.height
         const newCrop = resizeCropFromHandle(
           dragStart.crop,
           activeHandle,
-          { dx: normalizedDx, dy: normalizedDy }
+          { dx: normalizedDx, dy: normalizedDy },
+          imageAspect
         )
         setCrop(newCrop)
       }
