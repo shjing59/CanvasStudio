@@ -24,6 +24,16 @@ import type { ImageMetadata, ImageState } from '../types/image'
 type BorderKey = 'top' | 'bottom'
 
 // ============================================================================
+// LAYOUT STATE (drawer visibility)
+// ============================================================================
+interface LayoutState {
+  /** Whether the left drawer (Import/Export) is open */
+  leftDrawerOpen: boolean
+  /** Whether the right drawer (Controls) is open */
+  rightDrawerOpen: boolean
+}
+
+// ============================================================================
 // CANVAS SETTINGS (shared across all images)
 // ============================================================================
 interface CanvasSettings {
@@ -51,7 +61,7 @@ interface ImageQueueState {
 // ============================================================================
 // COMBINED STORE STATE
 // ============================================================================
-export interface CanvasStoreState extends CanvasSettings, ImageQueueState {
+export interface CanvasStoreState extends CanvasSettings, ImageQueueState, LayoutState {
   /** Internal flag: when true, next setPreviewSize will fit the active image */
   _needsInitialFit: boolean
 
@@ -80,6 +90,12 @@ export interface CanvasStoreState extends CanvasSettings, ImageQueueState {
   resetCrop: () => void
   toggleCropMode: () => void
   setCropAspectLock: (lock: boolean, aspect?: number) => void
+
+  // Layout actions
+  toggleLeftDrawer: () => void
+  toggleRightDrawer: () => void
+  setLeftDrawerOpen: (open: boolean) => void
+  setRightDrawerOpen: (open: boolean) => void
 
   // Settings actions
   setCenterSnap: (value: boolean) => void
@@ -198,6 +214,10 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     bottom: { ...initialBorder },
   },
   cropMode: false,
+
+  // Layout state
+  leftDrawerOpen: true,
+  rightDrawerOpen: true,
 
   // Image queue state
   images: [],
@@ -573,6 +593,26 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
             : state.exportOptions.quality,
       },
     }))
+  },
+
+  // ========================================================================
+  // LAYOUT ACTIONS
+  // ========================================================================
+
+  toggleLeftDrawer() {
+    set((state) => ({ leftDrawerOpen: !state.leftDrawerOpen }))
+  },
+
+  toggleRightDrawer() {
+    set((state) => ({ rightDrawerOpen: !state.rightDrawerOpen }))
+  },
+
+  setLeftDrawerOpen(open) {
+    set({ leftDrawerOpen: open })
+  },
+
+  setRightDrawerOpen(open) {
+    set({ rightDrawerOpen: open })
   },
 
   // ========================================================================

@@ -4,7 +4,8 @@ import { PanelSection } from '../ui/PanelSection'
 import { PresetButtons } from '../ui/PresetButtons'
 import { QUALITY_PRESETS } from '../../constants/presets'
 
-// Export settings panel - configuration only, actual export is in BottomToolbar
+// Export settings panel - Note: This is now integrated into LeftDrawer
+// Kept for potential future standalone use
 export const ExportSettingsPanel = () => {
   const exportOptions = useCanvasStore((state) => state.exportOptions)
   const setExportOptions = useCanvasStore((state) => state.setExportOptions)

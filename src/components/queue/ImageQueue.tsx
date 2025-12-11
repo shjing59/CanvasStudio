@@ -20,7 +20,7 @@ export const ImageQueue = ({ onAddMore }: ImageQueueProps) => {
   }
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 scrollbar-thin scrollbar-thumb-white/20">
+    <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden py-1 px-1 scrollbar-thin scrollbar-thumb-white/20 min-w-0">
       {images.map((imageState, index) => (
         <QueueThumbnail
           key={imageState.image.id}
