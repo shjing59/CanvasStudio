@@ -8,29 +8,40 @@ import type { TransformState, CanvasSnapshot, RatioOptionId, CropState } from '.
 import { computeDefaultScale, computeFitScale } from './math'
 import { findRatioValue } from './ratios'
 import { SNAP } from './constants'
+import { getCropCenterOffset, getEffectiveDimensions } from './crop'
 
 /**
  * Pure function: Calculate initial transform for any image in any canvas size.
- * This is the foundation for per-image transforms.
+ * When crop is provided, calculates scale and offset to fit and center the cropped region.
  */
 export function computeInitialTransform(
   image: ImageMetadata,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  crop?: CropState | null
 ): TransformState {
-  const scale = computeDefaultScale(image, canvasWidth, canvasHeight)
-  return { x: 0, y: 0, scale }
+  const scale = computeDefaultScale(image, canvasWidth, canvasHeight, crop)
+  
+  // If crop exists, offset the transform so the cropped region is centered
+  const cropOffset = getCropCenterOffset(image, crop ?? null)
+  
+  return { 
+    x: -cropOffset.x * scale, 
+    y: -cropOffset.y * scale, 
+    scale 
+  }
 }
 
 /**
- * Pure function: Calculate fit scale for any image in any canvas size.
+ * Pure function: Calculate fit scale for any image (or cropped region) in any canvas size.
  */
 export function computeImageFitScale(
   image: ImageMetadata,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  crop?: CropState | null
 ): number {
-  return computeFitScale(image, canvasWidth, canvasHeight)
+  return computeFitScale(image, canvasWidth, canvasHeight, crop)
 }
 
 /**
@@ -51,6 +62,7 @@ export function applySnapToTransform(
 /**
  * Pure function: Create a snapshot for any image with any transform.
  * Decouples snapshot creation from store.
+ * When crop exists, uses cropped dimensions for export baseWidth/baseHeight.
  */
 export function createImageSnapshot(params: {
   image: ImageMetadata
@@ -63,8 +75,10 @@ export function createImageSnapshot(params: {
   customRatio: { width: number; height: number }
 }): CanvasSnapshot {
   const { image, transform, crop, canvasWidth, canvasHeight, background, ratioId, customRatio } = params
-  const ratio = findRatioValue(ratioId, { custom: customRatio, image })
-  const baseWidth = image.width
+  // Use effective (cropped) dimensions for export
+  const effectiveDims = getEffectiveDimensions(image, crop)
+  const ratio = findRatioValue(ratioId, { custom: customRatio, image, crop })
+  const baseWidth = effectiveDims.width
   const baseHeight = baseWidth / ratio
 
   return {

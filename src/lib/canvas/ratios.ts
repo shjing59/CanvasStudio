@@ -1,4 +1,4 @@
-import type { RatioOption, RatioOptionId } from '../../types/canvas'
+import type { RatioOption, RatioOptionId, CropState } from '../../types/canvas'
 
 export const RATIO_PRESETS: RatioOption[] = [
   { id: '1:1', label: '1 : 1', value: 1, description: 'Square' },
@@ -14,13 +14,27 @@ export const RATIO_PRESETS: RatioOption[] = [
 
 export const DEFAULT_RATIO_ID: RatioOptionId = '3:2'
 
+/**
+ * Get the ratio value for a given ratio ID.
+ * When 'original' is selected and crop exists, uses cropped aspect ratio.
+ */
 export function findRatioValue(
   id: RatioOptionId,
-  params: { custom: { width: number; height: number }; image?: { width: number; height: number } }
+  params: { 
+    custom: { width: number; height: number }
+    image?: { width: number; height: number }
+    crop?: CropState | null
+  }
 ): number {
   if (id === 'original') {
-    const { image } = params
+    const { image, crop } = params
     if (image) {
+      // If crop exists, use cropped aspect ratio
+      if (crop) {
+        const croppedWidth = image.width * crop.width
+        const croppedHeight = image.height * crop.height
+        return croppedWidth / croppedHeight
+      }
       return image.width / image.height
     }
     return 1

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { DEFAULT_RATIO_ID, findRatioValue } from '../lib/canvas/ratios'
 import { SCALE, CANVAS, RESIZE } from '../lib/canvas/constants'
 import { clamp, computeFitScale } from '../lib/canvas/math'
+import { getEffectiveDimensions } from '../lib/canvas/crop'
 import {
   computeInitialTransform,
   applySnapToTransform,
@@ -119,7 +120,7 @@ function updateImageInQueue(
 }
 
 /**
- * Fits the active image to the current preview canvas size.
+ * Fits the active image (or cropped region) to the current preview canvas size.
  */
 function fitActiveImageToPreview(): void {
   const state = useCanvasStore.getState()
@@ -127,7 +128,8 @@ function fitActiveImageToPreview(): void {
   if (!activeImage || !state.previewSize) return
 
   const { width: canvasW, height: canvasH } = state.previewSize
-  const initialTransform = computeInitialTransform(activeImage.image, canvasW, canvasH)
+  // Pass crop to compute transform based on cropped dimensions
+  const initialTransform = computeInitialTransform(activeImage.image, canvasW, canvasH, activeImage.crop)
 
   useCanvasStore.setState({
     images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
@@ -140,33 +142,43 @@ function fitActiveImageToPreview(): void {
 }
 
 /**
- * Calculates the fit scale based on current preview size and active image.
+ * Calculates the fit scale based on current preview size and active image (or cropped region).
  */
 function getFitScaleFromState(state: CanvasStoreState): number | null {
   const activeImage = getActiveImageState(state)
   if (!activeImage || !state.previewSize) return null
   const { width: canvasW, height: canvasH } = state.previewSize
   if (canvasW <= 0 || canvasH <= 0) return null
-  return computeFitScale(activeImage.image, canvasW, canvasH)
+  // Pass crop to compute fit scale based on cropped dimensions
+  return computeFitScale(activeImage.image, canvasW, canvasH, activeImage.crop)
 }
 
 /**
- * Derives the base dimensions for export (based on active image or default).
+ * Derives the base dimensions for export (based on active image/crop or default).
+ * When crop exists, uses cropped dimensions for export.
  */
 function deriveDimensions(state: CanvasStoreState) {
   const activeImage = getActiveImageState(state)
-  const baseWidth = activeImage?.image.width ?? CANVAS.DEFAULT_BASE_WIDTH
+  // Use effective (cropped) dimensions if crop exists
+  const effectiveDims = activeImage 
+    ? getEffectiveDimensions(activeImage.image, activeImage.crop)
+    : null
+  const baseWidth = effectiveDims?.width ?? CANVAS.DEFAULT_BASE_WIDTH
   const ratio = getRatioValue(state)
   const baseHeight = baseWidth / ratio
   return { baseWidth, baseHeight, ratio }
 }
 
 /**
- * Gets the current ratio value based on ratio ID, custom values, and active image.
+ * Gets the current ratio value based on ratio ID, custom values, active image, and crop.
  */
 function getRatioValue(state: CanvasStoreState): number {
   const activeImage = getActiveImageState(state)
-  return findRatioValue(state.ratioId, { custom: state.customRatio, image: activeImage?.image })
+  return findRatioValue(state.ratioId, { 
+    custom: state.customRatio, 
+    image: activeImage?.image,
+    crop: activeImage?.crop,
+  })
 }
 
 // ============================================================================

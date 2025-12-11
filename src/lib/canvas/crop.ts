@@ -259,6 +259,48 @@ export function getCropAspect(crop: CropState): number {
 }
 
 /**
+ * Calculate the effective (cropped) dimensions of an image.
+ * When crop is null, returns original dimensions.
+ * This is used to treat the cropped region as the "new image" for all calculations.
+ */
+export function getEffectiveDimensions(
+  image: ImageMetadata,
+  crop: CropState | null
+): { width: number; height: number } {
+  if (!crop) {
+    return { width: image.width, height: image.height }
+  }
+  return {
+    width: image.width * crop.width,
+    height: image.height * crop.height,
+  }
+}
+
+/**
+ * Get the center offset of the crop region relative to the image center.
+ * Returns the offset in image pixel coordinates.
+ * Used to adjust positioning so the cropped region is centered.
+ */
+export function getCropCenterOffset(
+  image: ImageMetadata,
+  crop: CropState | null
+): { x: number; y: number } {
+  if (!crop) {
+    return { x: 0, y: 0 }
+  }
+  // Crop center in normalized coordinates
+  const cropCenterX = crop.x + crop.width / 2
+  const cropCenterY = crop.y + crop.height / 2
+  
+  // Image center is at (0.5, 0.5) in normalized coordinates
+  // Calculate offset from image center to crop center
+  const offsetX = (cropCenterX - 0.5) * image.width
+  const offsetY = (cropCenterY - 0.5) * image.height
+  
+  return { x: offsetX, y: offsetY }
+}
+
+/**
  * Common aspect ratio presets for cropping.
  */
 export const CROP_ASPECT_PRESETS = [

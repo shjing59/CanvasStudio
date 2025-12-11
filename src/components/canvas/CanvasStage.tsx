@@ -24,10 +24,11 @@ export const CanvasStage = () => {
   const setPreviewSize = useCanvasStore((state) => state.setPreviewSize)
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null)
 
-  // Calculate aspect ratio using active image
+  // Calculate aspect ratio using active image (and crop if exists)
   const aspectRatio = findRatioValue(ratioId, {
     custom: customRatio,
     image: activeImageState?.image,
+    crop: activeImageState?.crop,
   })
 
   // Handle canvas size changes from Canvas component
