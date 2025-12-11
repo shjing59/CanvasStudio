@@ -22,6 +22,14 @@ CanvasStudio is a production-ready Vite + React (TS) application that recreates 
     - Image uses exact natural pixel dimensions; transform scale applies on top.
     - Auto Fit button recomputes the fit scale (95%) and recenters instantly; Recenter snaps translation back to `0,0`.
     - Center Snap toggles translation snapping near center (2px threshold); Reset restores fit scale and center.
+- **Image cropping**
+  - Non-destructive crop with industry-standard overlay UI (transform + crop overlay model).
+  - Crop mode toggle to enter/exit crop editing.
+  - Aspect ratio presets: Free, 1:1, 3:2, 2:3, 4:5, 5:4, 16:9, 9:16, Original.
+  - 8 resize handles (corners + edges) for precise crop adjustment with image-aware aspect locking.
+  - Rule-of-thirds grid overlay during crop editing.
+  - Drag inside crop area to reposition the crop selection.
+  - Crop persists per-image and is applied during export.
 - **Background colors**
   - Preset colors: White, Black, Light Gray, Dark Gray, Transparent.
   - Custom color via color picker and hex input.
@@ -49,10 +57,12 @@ src/
       BackgroundPanel.tsx      # Background color selection
       BorderPanel.tsx          # Top/bottom border controls (currently unused)
       ControlPanel.tsx         # Container for all control panels
+      CropPanel.tsx            # Crop mode toggle and aspect presets
       ExportSettingsPanel.tsx  # Export format and quality settings
       RatioPanel.tsx           # Aspect ratio selection + custom inputs
       TransformPanel.tsx       # Position & scale controls
     image/
+      CropOverlay.tsx          # Crop frame with resize handles (shown in crop mode)
       ImageLayer.tsx           # User-imported image (pure display + gestures)
     ui/
       PanelSection.tsx         # Reusable panel wrapper
@@ -68,9 +78,10 @@ src/
   lib/
     canvas/
       constants.ts             # Centralized constants (SCALE, CANVAS, RESIZE, etc.)
+      crop.ts                  # Pure crop math functions (cropToCanvasCoords, resizeCropFromHandle with imageAspect, etc.)
       math.ts                  # computeFitScale, computeDefaultScale, clamp
       ratios.ts                # Ratio catalog + findRatioValue helper
-      render.ts                # Single draw routine for preview/export
+      render.ts                # Single draw routine for preview/export (with crop clipping)
       transform.ts             # Pure transform functions (computeInitialTransform, etc.)
     export/
       exportCanvas.ts          # Export pipeline (exportComposite, exportSingleImage, exportMultipleImages)
@@ -89,7 +100,7 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 
 1. **Zustand for state** – Lightweight global store keeps gesture handlers and UI controls in sync without prop drilling.
 
-2. **Three-layer architecture** – Workspace (checkerboard background, never exported) → Canvas (white rectangle, export area) → ImageLayer (user-imported image, draggable/scalable).
+2. **Four-layer architecture** – Workspace (checkerboard background, never exported) → Canvas (white rectangle, export area) → ImageLayer (user-imported image, draggable/scalable) → CropOverlay (shown only in crop mode).
 
 3. **Single source of truth for scaling** – The store controls all scale initialization via `_needsInitialFit` flag and `fitCurrentImageToPreview()`. ImageLayer is a pure display component that never calculates or initializes scale.
 
@@ -119,8 +130,8 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
    - Export transforms preview coordinates to export coordinates uniformly
 
 8. **Separation of canvas settings vs image state** – Store cleanly separates:
-   - **CanvasSettings**: ratioId, customRatio, background, centerSnap, exportOptions, previewSize (shared across all images)
-   - **ActiveImageState**: image, transform, _needsInitialFit (per-image in future filmstrip queue)
+   - **CanvasSettings**: ratioId, customRatio, background, centerSnap, cropMode, exportOptions, previewSize (shared across all images)
+   - **ActiveImageState**: image, transform, crop, isEdited (per-image in filmstrip queue)
 
 9. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
 
@@ -130,16 +141,25 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 
 12. **Extensible for filmstrip queue** – Architecture is ready for multi-image support:
     - `ImageMetadata` has unique `id` field
-    - `ImageState` type bundles image + transform + isEdited flag
+    - `ImageState` type bundles image + transform + crop + isEdited flag
     - `loadImagesFromFiles()` can load multiple images
     - `exportSingleImage()` / `exportMultipleImages()` for batch export
     - Dropzone accepts multiple files
 
+13. **Non-destructive crop system** – Follows industry-standard transform + crop overlay model:
+    - `CropState` stored per-image (normalized 0-1 coordinates)
+    - Crop is independent from transform (zoom/pan applies to full image)
+    - `lib/canvas/crop.ts` contains pure functions for crop math
+    - Rendering applies crop as clipping mask via `cropToCanvasCoords()`
+    - Aspect ratio locking with common presets (1:1, 3:2, 4:5, 16:9, etc.)
+    - **Image-aware aspect calculations**: `resizeCropFromHandle` converts target pixel aspect to normalized aspect using `normalizedAspect = lockedAspect / imageAspect`, ensuring crops maintain correct visual proportions regardless of source image dimensions
+    - Template-ready: templates can set crop constraints, users adjust framing
+
 ## E. Roadmap
 
+- **Photo templates** – Vintage film frames (Kodak, Polaroid, Instax), social media templates, and custom overlays that auto-set canvas ratio, crop constraints, and frame graphics.
 - **Filmstrip queue** – Multi-image import with thumbnail strip, per-image transforms, batch export.
 - **Filters & adjustments** – Integrate GPU-accelerated filters (WebGL or Canvas2D) with stackable adjustment layers.
-- **Cropping modes** – Add explicit crop handles separate from canvas ratios to isolate subject framing.
 - **Multi-background system** – Extend background picker with gradients, textures, and color palettes tied to brand presets.
 - **Preset management** – Allow saving/loading custom ratio + border + transform presets per social network.
 - **Collaboration hooks** – Shareable links or JSON exports for designers to hand off settings.

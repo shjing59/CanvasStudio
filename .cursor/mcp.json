@@ -14,6 +14,15 @@
                 "-y",
                 "@modelcontextprotocol/server-puppeteer"
             ]
+        },
+        "chrome-devtools": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "chrome-devtools-mcp@latest",
+                "--browser-url=http://localhost:9222"
+
+            ]
         }
     }
 }

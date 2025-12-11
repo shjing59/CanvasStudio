@@ -4,12 +4,14 @@ import { findRatioValue } from '../../lib/canvas/ratios'
 import { Workspace } from '../workspace/Workspace'
 import { Canvas } from './Canvas'
 import { ImageLayer } from '../image/ImageLayer'
+import { CropOverlay } from '../image/CropOverlay'
 
 /**
  * CanvasStage component - orchestrates the three-layer architecture:
  * 1. Workspace (checkerboard background, full screen)
  * 2. Canvas (white rectangle, export area)
  * 3. ImageLayer (user-imported image, draggable/scalable)
+ * 4. CropOverlay (shown when crop mode is active)
  * 
  * Now supports multiple images via the queue - shows the active image.
  */
@@ -18,13 +20,15 @@ export const CanvasStage = () => {
   const images = useCanvasStore((state) => state.images)
   const ratioId = useCanvasStore((state) => state.ratioId)
   const customRatio = useCanvasStore((state) => state.customRatio)
+  const cropMode = useCanvasStore((state) => state.cropMode)
   const setPreviewSize = useCanvasStore((state) => state.setPreviewSize)
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null)
 
-  // Calculate aspect ratio using active image
+  // Calculate aspect ratio using active image (and crop if exists)
   const aspectRatio = findRatioValue(ratioId, {
     custom: customRatio,
     image: activeImageState?.image,
+    crop: activeImageState?.crop,
   })
 
   // Handle canvas size changes from Canvas component
@@ -45,6 +49,18 @@ export const CanvasStage = () => {
           {activeImageState && canvasSize && (
             <ImageLayer
               image={activeImageState.image}
+              transform={activeImageState.transform}
+              crop={activeImageState.crop}
+              canvasWidth={canvasSize.width}
+              canvasHeight={canvasSize.height}
+              disableCropClip={cropMode} // Don't clip during crop editing
+            />
+          )}
+          {/* Crop overlay - shown when crop mode is active */}
+          {cropMode && activeImageState && activeImageState.crop && canvasSize && (
+            <CropOverlay
+              image={activeImageState.image}
+              crop={activeImageState.crop}
               transform={activeImageState.transform}
               canvasWidth={canvasSize.width}
               canvasHeight={canvasSize.height}

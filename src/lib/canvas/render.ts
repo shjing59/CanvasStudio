@@ -1,5 +1,6 @@
-import type { TransformState } from '../../types/canvas'
+import type { TransformState, CropState } from '../../types/canvas'
 import type { ImageMetadata } from '../../types/image'
+import { cropToCanvasCoords } from './crop'
 
 interface SceneParams {
   ctx: CanvasRenderingContext2D
@@ -7,6 +8,7 @@ interface SceneParams {
   height: number
   background: string
   transform: TransformState
+  crop?: CropState | null
   borders: { top: number; bottom: number }
   image?: ImageMetadata
   visibleCenterOffset?: number
@@ -16,6 +18,7 @@ interface SceneParams {
  * Render the canvas scene (canvas background + image).
  * This is used for both preview and export - workspace is never included.
  * Uses the same transform logic as ImageLayer: translate(x, y) scale(scale) with center origin.
+ * When crop is provided, only the cropped region of the image is visible.
  */
 export function renderScene({
   ctx,
@@ -23,6 +26,7 @@ export function renderScene({
   height,
   background,
   transform,
+  crop,
   image,
 }: SceneParams) {
   // Fill canvas background (white by default)
@@ -43,6 +47,15 @@ export function renderScene({
   const originX = width / 2 + transform.x
   const originY = height / 2 + transform.y
 
+  // Apply crop clipping if crop is defined
+  if (crop) {
+    const cropRect = cropToCanvasCoords(crop, image, transform, width, height)
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(cropRect.x, cropRect.y, cropRect.width, cropRect.height)
+    ctx.clip()
+  }
+
   // Draw image with transform: translate(x, y) scale(scale)
   ctx.save()
   ctx.translate(originX, originY)
@@ -51,5 +64,10 @@ export function renderScene({
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(image.element, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
   ctx.restore()
+
+  // Restore from crop clipping
+  if (crop) {
+    ctx.restore()
+  }
 }
 

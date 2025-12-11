@@ -1,4 +1,4 @@
-import type { CanvasSnapshot, ExportOptions, RatioOptionId, TransformState } from '../../types/canvas'
+import type { CanvasSnapshot, CropState, ExportOptions, RatioOptionId, TransformState } from '../../types/canvas'
 import type { ImageMetadata } from '../../types/image'
 import { createImageSnapshot } from '../canvas/transform'
 import { renderScene } from '../canvas/render'
@@ -46,6 +46,7 @@ export async function exportComposite(
 
   // Render only the canvas + image (workspace is never exported)
   // Transform coordinates from preview space to export space
+  // Crop coordinates are normalized (0-1) and don't need scaling
   renderScene({
     ctx,
     width: targetWidth,
@@ -58,6 +59,7 @@ export async function exportComposite(
       // Scale also scales uniformly to maintain visual appearance
       scale: snapshot.transform.scale * scaleFactor,
     },
+    crop: snapshot.crop,
     borders: {
       top: 0,
       bottom: 0,
@@ -112,17 +114,19 @@ export interface ExportCanvasSettings {
 }
 
 /**
- * Pure function: Export a single image with given transform and canvas settings.
+ * Pure function: Export a single image with given transform, crop, and canvas settings.
  * This doesn't depend on store state and can be used to export any image in the queue.
  */
 export async function exportSingleImage(
   image: ImageMetadata,
   transform: TransformState,
+  crop: CropState | null,
   settings: ExportCanvasSettings
 ): Promise<ExportResponse> {
   const snapshot = createImageSnapshot({
     image,
     transform,
+    crop,
     canvasWidth: settings.previewSize.width,
     canvasHeight: settings.previewSize.height,
     background: settings.background,
@@ -138,7 +142,7 @@ export async function exportSingleImage(
  * Returns array of export results.
  */
 export async function exportMultipleImages(
-  images: Array<{ image: ImageMetadata; transform: TransformState }>,
+  images: Array<{ image: ImageMetadata; transform: TransformState; crop: CropState | null }>,
   settings: ExportCanvasSettings,
   onProgress?: (completed: number, total: number) => void
 ): Promise<ExportResponse[]> {
@@ -146,8 +150,8 @@ export async function exportMultipleImages(
   const total = images.length
 
   for (let i = 0; i < images.length; i++) {
-    const { image, transform } = images[i]
-    const result = await exportSingleImage(image, transform, settings)
+    const { image, transform, crop } = images[i]
+    const result = await exportSingleImage(image, transform, crop, settings)
     results.push(result)
     onProgress?.(i + 1, total)
   }

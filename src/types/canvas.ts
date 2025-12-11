@@ -40,9 +40,29 @@ export interface ExportOptions {
   quality: number // 0 - 1
 }
 
+/**
+ * Defines a crop region in normalized image coordinates (0-1).
+ * When null, the full image is shown without cropping.
+ */
+export interface CropState {
+  /** Left edge position (0-1 normalized, in image coordinates) */
+  x: number
+  /** Top edge position (0-1 normalized, in image coordinates) */
+  y: number
+  /** Width of crop region (0-1 normalized) */
+  width: number
+  /** Height of crop region (0-1 normalized) */
+  height: number
+  /** Whether to lock aspect ratio during resize */
+  aspectLock: boolean
+  /** Locked aspect ratio (width/height), only used when aspectLock is true */
+  lockedAspect?: number
+}
+
 export interface CanvasSnapshot {
   image?: ImageMetadata
   transform: TransformState
+  crop: CropState | null
   borders: { top: BorderSetting; bottom: BorderSetting }
   background: string
   dimensions: CanvasDimensions
