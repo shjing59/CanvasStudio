@@ -26,9 +26,9 @@ CanvasStudio is a production-ready Vite + React (TS) application that recreates 
   - Non-destructive crop with industry-standard overlay UI (transform + crop overlay model).
   - Crop mode toggle to enter/exit crop editing.
   - Aspect ratio presets: Free, 1:1, 3:2, 2:3, 4:5, 5:4, 16:9, 9:16, Original.
-  - 8 resize handles (corners + edges) for precise crop adjustment.
+  - 8 resize handles (corners + edges) for precise crop adjustment with image-aware aspect locking.
   - Rule-of-thirds grid overlay during crop editing.
-  - Drag inside crop area to reposition image behind the frame.
+  - Drag inside crop area to reposition the crop selection.
   - Crop persists per-image and is applied during export.
 - **Background colors**
   - Preset colors: White, Black, Light Gray, Dark Gray, Transparent.
@@ -78,7 +78,7 @@ src/
   lib/
     canvas/
       constants.ts             # Centralized constants (SCALE, CANVAS, RESIZE, etc.)
-      crop.ts                  # Pure crop math functions (cropToCanvasCoords, resizeCropFromHandle, etc.)
+      crop.ts                  # Pure crop math functions (cropToCanvasCoords, resizeCropFromHandle with imageAspect, etc.)
       math.ts                  # computeFitScale, computeDefaultScale, clamp
       ratios.ts                # Ratio catalog + findRatioValue helper
       render.ts                # Single draw routine for preview/export (with crop clipping)
@@ -152,6 +152,7 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
     - `lib/canvas/crop.ts` contains pure functions for crop math
     - Rendering applies crop as clipping mask via `cropToCanvasCoords()`
     - Aspect ratio locking with common presets (1:1, 3:2, 4:5, 16:9, etc.)
+    - **Image-aware aspect calculations**: `resizeCropFromHandle` converts target pixel aspect to normalized aspect using `normalizedAspect = lockedAspect / imageAspect`, ensuring crops maintain correct visual proportions regardless of source image dimensions
     - Template-ready: templates can set crop constraints, users adjust framing
 
 ## E. Roadmap
