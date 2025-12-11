@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
-import { cropToCanvasCoords, resizeCropFromHandle } from '../../lib/canvas/crop'
+import { cropToCanvasCoords, resizeCropFromHandle, moveCrop } from '../../lib/canvas/crop'
 import type { CropState } from '../../types/canvas'
 import type { ImageMetadata } from '../../types/image'
 
@@ -28,7 +28,6 @@ export const CropOverlay = ({
   canvasHeight,
 }: CropOverlayProps) => {
   const setCrop = useCanvasStore((state) => state.setCrop)
-  const updateTransform = useCanvasStore((state) => state.updateTransform)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -37,7 +36,6 @@ export const CropOverlay = ({
     clientX: number
     clientY: number
     crop: CropState
-    transform: { x: number; y: number }
   } | null>(null)
 
   // Convert crop to canvas coordinates for display
@@ -59,13 +57,12 @@ export const CropOverlay = ({
         clientX: e.clientX,
         clientY: e.clientY,
         crop: { ...crop },
-        transform: { x: transform.x, y: transform.y },
       })
       if (containerRef.current) {
         containerRef.current.setPointerCapture(e.pointerId)
       }
     },
-    [crop, transform.x, transform.y]
+    [crop]
   )
 
   // Handle pointer down on the crop area (for moving)
@@ -79,13 +76,12 @@ export const CropOverlay = ({
         clientX: e.clientX,
         clientY: e.clientY,
         crop: { ...crop },
-        transform: { x: transform.x, y: transform.y },
       })
       if (containerRef.current) {
         containerRef.current.setPointerCapture(e.pointerId)
       }
     },
-    [crop, transform.x, transform.y]
+    [crop]
   )
 
   // Handle pointer move
@@ -98,20 +94,16 @@ export const CropOverlay = ({
       const dx = e.clientX - dragStart.clientX
       const dy = e.clientY - dragStart.clientY
 
+      // Convert pixel delta to normalized image coordinates
+      const normalizedDx = dx / displayWidth
+      const normalizedDy = dy / displayHeight
+
       if (activeHandle === 'move') {
-        // Moving the crop area means moving the image in the opposite direction
-        // (or we could move the crop region itself)
-        // For fixed-frame UI, we move the image transform
-        updateTransform({
-          x: dragStart.transform.x + dx,
-          y: dragStart.transform.y + dy,
-        })
+        // Move the crop region itself (not the image)
+        const newCrop = moveCrop(dragStart.crop, { dx: normalizedDx, dy: normalizedDy })
+        setCrop(newCrop)
       } else {
         // Resizing the crop
-        // Convert pixel delta to normalized image coordinates
-        const normalizedDx = dx / displayWidth
-        const normalizedDy = dy / displayHeight
-
         const newCrop = resizeCropFromHandle(
           dragStart.crop,
           activeHandle,
@@ -120,7 +112,7 @@ export const CropOverlay = ({
         setCrop(newCrop)
       }
     },
-    [isDragging, dragStart, activeHandle, displayWidth, displayHeight, setCrop, updateTransform]
+    [isDragging, dragStart, activeHandle, displayWidth, displayHeight, setCrop]
   )
 
   // Handle pointer up

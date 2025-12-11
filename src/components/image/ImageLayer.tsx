@@ -1,14 +1,18 @@
 import { useRef, useState, useCallback } from 'react'
 import { useCanvasStore, selectFitScale } from '../../state/canvasStore'
 import { SCALE } from '../../lib/canvas/constants'
+import { cropToCanvasCoords } from '../../lib/canvas/crop'
 import type { ImageMetadata } from '../../types/image'
-import type { TransformState } from '../../types/canvas'
+import type { TransformState, CropState } from '../../types/canvas'
 
 interface ImageLayerProps {
   image: ImageMetadata
   transform: TransformState
+  crop: CropState | null
   canvasWidth: number
   canvasHeight: number
+  /** When true, crop clipping is not applied (used during crop editing) */
+  disableCropClip?: boolean
 }
 
 /**
@@ -17,9 +21,10 @@ interface ImageLayerProps {
  * This is a PURE display component:
  * - Renders the image based on transform passed as prop
  * - Handles drag and zoom gestures
+ * - Applies crop clipping when crop is defined (unless disableCropClip is true)
  * - Does NOT initialize or calculate scale (that's the store's job)
  */
-export const ImageLayer = ({ image, transform, canvasWidth, canvasHeight }: ImageLayerProps) => {
+export const ImageLayer = ({ image, transform, crop, canvasWidth, canvasHeight, disableCropClip = false }: ImageLayerProps) => {
   const updateTransform = useCanvasStore((state) => state.updateTransform)
   const fitScale = useCanvasStore(selectFitScale)
 
@@ -113,6 +118,21 @@ export const ImageLayer = ({ image, transform, canvasWidth, canvasHeight }: Imag
   const offsetLeft = canvasWidth / 2 - displayWidth / 2 + transform.x
   const offsetTop = canvasHeight / 2 - displayHeight / 2 + transform.y
 
+  // Calculate crop clipping if crop is defined and clipping is enabled
+  const shouldClip = crop && !disableCropClip
+  let clipPath: string | undefined
+  
+  if (shouldClip) {
+    const cropRect = cropToCanvasCoords(crop, image, transform, canvasWidth, canvasHeight)
+    // Create an inset clip-path based on crop rectangle
+    // inset(top right bottom left) - distances from edges
+    const top = cropRect.y
+    const right = canvasWidth - (cropRect.x + cropRect.width)
+    const bottom = canvasHeight - (cropRect.y + cropRect.height)
+    const left = cropRect.x
+    clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`
+  }
+
   return (
     <div
       ref={containerRef}
@@ -120,6 +140,7 @@ export const ImageLayer = ({ image, transform, canvasWidth, canvasHeight }: Imag
       style={{
         cursor: isDragging ? 'grabbing' : 'grab',
         pointerEvents: 'auto',
+        clipPath,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

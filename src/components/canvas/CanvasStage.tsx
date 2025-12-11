@@ -49,8 +49,10 @@ export const CanvasStage = () => {
             <ImageLayer
               image={activeImageState.image}
               transform={activeImageState.transform}
+              crop={activeImageState.crop}
               canvasWidth={canvasSize.width}
               canvasHeight={canvasSize.height}
+              disableCropClip={cropMode} // Don't clip during crop editing
             />
           )}
           {/* Crop overlay - shown when crop mode is active */}
