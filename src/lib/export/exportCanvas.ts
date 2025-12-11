@@ -1,5 +1,6 @@
 import type { CanvasSnapshot, CropState, ExportOptions, RatioOptionId, TransformState } from '../../types/canvas'
 import type { ImageMetadata } from '../../types/image'
+import type { FilterState } from '../../types/filter'
 import { createImageSnapshot } from '../canvas/transform'
 import { renderScene } from '../canvas/render'
 
@@ -60,6 +61,7 @@ export async function exportComposite(
       scale: snapshot.transform.scale * scaleFactor,
     },
     crop: snapshot.crop,
+    filter: snapshot.filter,
     borders: {
       top: 0,
       bottom: 0,
@@ -121,12 +123,14 @@ export async function exportSingleImage(
   image: ImageMetadata,
   transform: TransformState,
   crop: CropState | null,
+  filter: FilterState | null,
   settings: ExportCanvasSettings
 ): Promise<ExportResponse> {
   const snapshot = createImageSnapshot({
     image,
     transform,
     crop,
+    filter,
     canvasWidth: settings.previewSize.width,
     canvasHeight: settings.previewSize.height,
     background: settings.background,
@@ -142,7 +146,7 @@ export async function exportSingleImage(
  * Returns array of export results.
  */
 export async function exportMultipleImages(
-  images: Array<{ image: ImageMetadata; transform: TransformState; crop: CropState | null }>,
+  images: Array<{ image: ImageMetadata; transform: TransformState; crop: CropState | null; filter: FilterState | null }>,
   settings: ExportCanvasSettings,
   onProgress?: (completed: number, total: number) => void
 ): Promise<ExportResponse[]> {
@@ -150,8 +154,8 @@ export async function exportMultipleImages(
   const total = images.length
 
   for (let i = 0; i < images.length; i++) {
-    const { image, transform, crop } = images[i]
-    const result = await exportSingleImage(image, transform, crop, settings)
+    const { image, transform, crop, filter } = images[i]
+    const result = await exportSingleImage(image, transform, crop, filter, settings)
     results.push(result)
     onProgress?.(i + 1, total)
   }

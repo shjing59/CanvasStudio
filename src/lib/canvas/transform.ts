@@ -5,6 +5,7 @@
 
 import type { ImageMetadata } from '../../types/image'
 import type { TransformState, CanvasSnapshot, RatioOptionId, CropState } from '../../types/canvas'
+import type { FilterState } from '../../types/filter'
 import { computeDefaultScale, computeFitScale } from './math'
 import { findRatioValue } from './ratios'
 import { SNAP } from './constants'
@@ -68,13 +69,14 @@ export function createImageSnapshot(params: {
   image: ImageMetadata
   transform: TransformState
   crop: CropState | null
+  filter: FilterState | null
   canvasWidth: number
   canvasHeight: number
   background: string
   ratioId: RatioOptionId
   customRatio: { width: number; height: number }
 }): CanvasSnapshot {
-  const { image, transform, crop, canvasWidth, canvasHeight, background, ratioId, customRatio } = params
+  const { image, transform, crop, filter, canvasWidth, canvasHeight, background, ratioId, customRatio } = params
   // Use effective (cropped) dimensions for export
   const effectiveDims = getEffectiveDimensions(image, crop)
   const ratio = findRatioValue(ratioId, { custom: customRatio, image, crop })
@@ -85,6 +87,7 @@ export function createImageSnapshot(params: {
     image,
     transform,
     crop,
+    filter,
     borders: { top: { value: 0, unit: 'px' }, bottom: { value: 0, unit: 'px' } },
     background,
     dimensions: { baseWidth, baseHeight, ratio },
