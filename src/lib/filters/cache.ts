@@ -2,13 +2,13 @@ import type { ImageMetadata, FilterState, LUTData } from '../../types/filter'
 import { applyLUTToCanvas } from './processor'
 
 /**
- * Generate a cached filtered image from the original image and filter settings.
- * This is expensive, so we cache the result and only regenerate when needed.
+ * Generate a fully filtered image (intensity = 1.0) from the original image and filter.
+ * This is expensive, so we cache it and only regenerate when the filter changes.
+ * For intensity adjustments, we blend between original and this cached image.
  */
-export function generateFilteredImage(
+export function generateFilteredImageFull(
   image: ImageMetadata,
-  lutData: LUTData,
-  intensity: number
+  lutData: LUTData
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = image.width
@@ -24,15 +24,13 @@ export function generateFilteredImage(
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(image.element, 0, 0, image.width, image.height)
   
-  // Apply filter
-  if (intensity > 0) {
-    applyLUTToCanvas(ctx, lutData, intensity, {
-      x: 0,
-      y: 0,
-      width: image.width,
-      height: image.height,
-    })
-  }
+  // Apply filter at full intensity (1.0)
+  applyLUTToCanvas(ctx, lutData, 1.0, {
+    x: 0,
+    y: 0,
+    width: image.width,
+    height: image.height,
+  })
   
   return canvas
 }

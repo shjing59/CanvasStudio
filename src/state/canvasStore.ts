@@ -14,7 +14,7 @@ import { loadImageFromFile, loadImagesFromFiles } from '../lib/image/loadImage'
 import { filterLoaderRegistry } from '../lib/filters/loader'
 import { CubeLoader } from '../lib/filters/formats/cube'
 import { BUILTIN_FILTERS, loadBuiltinFilter } from '../lib/filters/presets'
-import { generateFilteredImage } from '../lib/filters/cache'
+import { generateFilteredImageFull } from '../lib/filters/cache'
 import type {
   BorderSetting,
   CanvasSnapshot,
@@ -595,15 +595,15 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       // Load and parse the filter
       const result = await loader.load(file)
 
-      // Generate filtered image cache (expensive operation, done once)
-      const filteredImage = generateFilteredImage(activeImage.image, result.lutData, 1.0)
+      // Generate fully filtered image cache (expensive operation, done once when filter is applied)
+      const filteredImageFull = generateFilteredImageFull(activeImage.image, result.lutData)
 
-      // Create filter state with cached filtered image
+      // Create filter state with cached fully filtered image
       const filterState: FilterState = {
         filterId,
         lutData: result.lutData,
         intensity: 1.0,
-        filteredImage,
+        filteredImageFull,
       }
 
       // Update image state
@@ -622,15 +622,12 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   setFilterIntensity(intensity: number) {
     const state = get()
     const activeImage = getActiveImageState(state)
-    if (!activeImage || !activeImage.filter || !activeImage.filter.lutData) return
+    if (!activeImage || !activeImage.filter) return
 
     const clampedIntensity = clamp(intensity, 0, 1)
 
-    // Regenerate filtered image cache with new intensity
-    const filteredImage = clampedIntensity > 0
-      ? generateFilteredImage(activeImage.image, activeImage.filter.lutData, clampedIntensity)
-      : null
-
+    // Just update intensity - no need to regenerate cache!
+    // The renderer will blend between original and filteredImageFull based on intensity
     set({
       images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
         ...img,
@@ -638,7 +635,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
           ? {
               ...img.filter,
               intensity: clampedIntensity,
-              filteredImage,
+              // filteredImageFull stays the same - we blend in real-time
             }
           : null,
       })),
@@ -663,15 +660,15 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       // Generate a unique ID for user-uploaded filter
       const filterId = `user-${crypto.randomUUID()}`
 
-      // Generate filtered image cache
-      const filteredImage = generateFilteredImage(activeImage.image, result.lutData, 1.0)
+      // Generate fully filtered image cache (expensive operation, done once)
+      const filteredImageFull = generateFilteredImageFull(activeImage.image, result.lutData)
 
-      // Create filter state with cached filtered image
+      // Create filter state with cached fully filtered image
       const filterState: FilterState = {
         filterId,
         lutData: result.lutData,
         intensity: 1.0,
-        filteredImage,
+        filteredImageFull,
       }
 
       // Update image state

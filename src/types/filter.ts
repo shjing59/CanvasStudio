@@ -34,8 +34,8 @@ export interface FilterState {
   lutData: LUTData | null
   /** Filter intensity (0-1, default 1.0) */
   intensity: number
-  /** Cached filtered image element (regenerated when filter/intensity changes) */
-  filteredImage?: HTMLCanvasElement | null
+  /** Cached fully filtered image (intensity = 1.0) - only regenerated when filter changes */
+  filteredImageFull?: HTMLCanvasElement | null
 }
 
 /**
