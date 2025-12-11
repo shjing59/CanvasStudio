@@ -76,9 +76,8 @@ export const TransformPanel = () => {
           className="w-full accent-white"
           disabled={!hasActiveImage}
         />
-        <p className="text-[11px] text-slate-500">
-          -100% keeps the image fully fitting inside the canvas, 0% equals the fitted size, positive
-          values zoom in.
+        <p className="text-[11px] text-slate-500 break-words">
+          -100% keeps the image fully fitting inside the canvas, 0% equals the fitted size, positive values zoom in.
         </p>
       </div>
       <div className="space-y-2">
@@ -111,12 +110,12 @@ export const TransformPanel = () => {
           disabled={!hasActiveImage}
         />
       </div>
-      <div className="flex gap-2 text-xs">
+      <div className="flex gap-2 text-xs min-w-0">
         <button
           type="button"
           onClick={fitImageToCanvas}
           disabled={!hasActiveImage}
-          className="flex-1 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 min-w-0 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Auto Fit
         </button>
@@ -124,7 +123,7 @@ export const TransformPanel = () => {
           type="button"
           onClick={() => updateTransform({ x: 0, y: 0 })}
           disabled={!hasActiveImage}
-          className="flex-1 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 min-w-0 rounded-2xl border border-white/20 px-3 py-2 font-semibold text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Recenter
         </button>
@@ -136,12 +135,12 @@ export const TransformPanel = () => {
           onClick={() => setCenterSnap(!centerSnap)}
         />
       </div>
-      <div className="flex flex-wrap gap-2 text-xs">
+      <div className="flex flex-wrap gap-2 text-xs min-w-0 max-w-full">
         <button
           type="button"
           onClick={() => handleZoomStep(1)}
           disabled={!hasActiveImage}
-          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           + Zoom
         </button>
@@ -149,7 +148,7 @@ export const TransformPanel = () => {
           type="button"
           onClick={() => handleZoomStep(-1)}
           disabled={!hasActiveImage}
-          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full border border-white/10 px-3 py-1 text-white transition hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           − Zoom
         </button>
@@ -157,7 +156,7 @@ export const TransformPanel = () => {
           type="button"
           onClick={resetTransform}
           disabled={!hasActiveImage}
-          className="ml-auto rounded-full bg-white/10 px-4 py-1 font-semibold text-white transition hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-auto rounded-full bg-white/10 px-4 py-1 font-semibold text-white transition hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           Reset
         </button>

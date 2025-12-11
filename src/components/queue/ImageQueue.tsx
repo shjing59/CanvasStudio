@@ -20,7 +20,7 @@ export const ImageQueue = ({ onAddMore }: ImageQueueProps) => {
   }
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 scrollbar-thin scrollbar-thumb-white/20">
+    <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto py-1 px-1 pr-2 scrollbar-thin scrollbar-thumb-white/20 min-w-0">
       {images.map((imageState, index) => (
         <QueueThumbnail
           key={imageState.image.id}
@@ -36,7 +36,7 @@ export const ImageQueue = ({ onAddMore }: ImageQueueProps) => {
       <button
         type="button"
         onClick={onAddMore}
-        className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-lg border-2 border-dashed border-white/20 text-white/40 hover:border-white/40 hover:text-white/60 transition-colors"
+        className="flex items-center justify-center w-full aspect-square rounded-lg border-2 border-dashed border-white/20 text-white/40 hover:border-white/40 hover:text-white/60 transition-colors"
         title="Add more images"
       >
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

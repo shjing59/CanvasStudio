@@ -51,36 +51,38 @@ export const RatioPanel = () => {
       title="1. Canvas Ratio"
       description="Switch instantly while preserving layout"
     >
-      <PresetButtons
-        presets={ratioButtons}
-        currentValue={ratioId}
-        onChange={setRatio}
-      />
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <label className="flex flex-col gap-1">
-          <span className="text-slate-400">Custom width</span>
+      <div className="min-w-0 max-w-full">
+        <PresetButtons
+          presets={ratioButtons}
+          currentValue={ratioId}
+          onChange={setRatio}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs min-w-0">
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="text-slate-400 truncate">Custom width</span>
           <input
             type="number"
             min={CUSTOM_RATIO.MIN}
             max={CUSTOM_RATIO.MAX}
             value={customRatio.width}
             onChange={handleWidthChange}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
+            className="w-full min-w-0 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
           />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-slate-400">Custom height</span>
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="text-slate-400 truncate">Custom height</span>
           <input
             type="number"
             min={CUSTOM_RATIO.MIN}
             max={CUSTOM_RATIO.MAX}
             value={customRatio.height}
             onChange={handleHeightChange}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
+            className="w-full min-w-0 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-white/40 focus:outline-none"
           />
         </label>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-500 break-words">
         Custom values auto-apply once both width and height are defined (range: {CUSTOM_RATIO.MIN}-{CUSTOM_RATIO.MAX}).
       </p>
     </PanelSection>

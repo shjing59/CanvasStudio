@@ -94,17 +94,17 @@ export const CropPanel = () => {
         </button>
       ) : (
         // In crop mode - show aspect presets and controls
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* Aspect ratio presets */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <p className="text-xs text-slate-400">Aspect Ratio</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 min-w-0 max-w-full">
               {CROP_ASPECT_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
                   onClick={() => handleAspectChange(preset.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition whitespace-nowrap ${
                     currentPresetId === preset.id
                       ? 'border-white bg-white/20 text-white'
                       : 'border-white/10 text-slate-300 hover:border-white/40'
@@ -132,25 +132,25 @@ export const CropPanel = () => {
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 min-w-0">
             <button
               type="button"
               onClick={handleResetCrop}
-              className="flex-1 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/40"
+              className="flex-1 min-w-0 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/40"
             >
               Reset
             </button>
             <button
               type="button"
               onClick={handleCancelCrop}
-              className="flex-1 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/40"
+              className="flex-1 min-w-0 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-white/40"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleApplyCrop}
-              className="flex-1 rounded-lg border border-blue-500 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-400 transition hover:bg-blue-500/30"
+              className="flex-1 min-w-0 rounded-lg border border-blue-500 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-400 transition hover:bg-blue-500/30"
             >
               Apply
             </button>
