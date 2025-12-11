@@ -87,140 +87,146 @@ export const LeftDrawer = () => {
 
       {/* Drawer */}
       <div
-        className={`fixed left-0 top-0 z-20 h-screen w-[300px] bg-canvas-control/90 backdrop-blur border-r border-white/10 transition-transform duration-300 ease-in-out overflow-y-auto overflow-x-hidden ${
+        className={`fixed left-0 top-0 z-20 h-screen w-[300px] bg-canvas-control/90 backdrop-blur border-r border-white/10 transition-transform duration-300 ease-in-out overflow-x-hidden ${
           leftDrawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 lg:p-6 space-y-6 min-w-0">
-          {/* Import Section */}
-          <div {...getRootProps()} className={isDragActive ? 'opacity-50' : ''}>
-            <input {...getInputProps()} />
-            <div className="space-y-3 min-w-0">
-              <div>
-                <h2 className="text-sm font-semibold text-white mb-1">Import</h2>
-                <p className="text-xs text-slate-400 break-words">Add images to your canvas</p>
+        <div className="flex h-full flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 lg:p-6 space-y-6 min-w-0">
+              {/* Import Section */}
+              <div {...getRootProps()} className={isDragActive ? 'opacity-50' : ''}>
+                <input {...getInputProps()} />
+                <div className="space-y-3 min-w-0">
+                  <div>
+                    <h2 className="text-sm font-semibold text-white mb-1">Import</h2>
+                    <p className="text-xs text-slate-400 break-words">Add images to your canvas</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+                  >
+                    {hasImages ? 'Add More Images' : 'Import Images'}
+                  </button>
+
+                  {isDragActive && (
+                    <div className="text-xs text-white text-center py-2">
+                      Drop images to add to queue
+                    </div>
+                  )}
+
+                  {error && <div className="text-xs text-rose-400">{error}</div>}
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={open}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
-              >
-                {hasImages ? 'Add More Images' : 'Import Images'}
-              </button>
-
-              {isDragActive && (
-                <div className="text-xs text-white text-center py-2">
-                  Drop images to add to queue
+              {/* Image Queue Section */}
+              {hasImages && (
+                <div className="space-y-3 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-sm font-semibold text-white">Queue</h2>
+                      <p className="text-xs text-slate-400 truncate">
+                        {images.length} image{images.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    {hasMultipleImages && (
+                      <button
+                        type="button"
+                        onClick={clearAllImages}
+                        className="text-xs text-rose-400 hover:text-rose-300 transition-colors flex-shrink-0 whitespace-nowrap"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  <ImageQueue onAddMore={open} />
                 </div>
               )}
-
-              {error && <div className="text-xs text-rose-400">{error}</div>}
             </div>
           </div>
 
-          {/* Image Queue Section */}
-          {hasImages && (
+          <div className="border-t border-white/10 p-4 lg:p-6 space-y-6 min-w-0">
+            {/* Export Settings Section */}
             <div className="space-y-3 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-sm font-semibold text-white">Queue</h2>
-                  <p className="text-xs text-slate-400 truncate">
-                    {images.length} image{images.length !== 1 ? 's' : ''}
-                  </p>
+              <div>
+                <h2 className="text-sm font-semibold text-white mb-1">Export Settings</h2>
+                <p className="text-xs text-slate-400 break-words">Configure output format and quality</p>
+              </div>
+
+              {/* Format Selection */}
+              <div className="space-y-2 rounded-2xl border border-white/10 p-3 text-xs">
+                <legend className="text-xs uppercase tracking-wide text-slate-400 mb-2">
+                  Format
+                </legend>
+                <div className="flex gap-2">
+                  {(['png', 'jpeg'] as const).map((format) => (
+                    <button
+                      key={format}
+                      type="button"
+                      onClick={() => setExportOptions({ format })}
+                      className={`flex-1 rounded-lg border px-3 py-2 font-semibold capitalize ${
+                        exportOptions.format === format
+                          ? 'border-white bg-white/10 text-white'
+                          : 'border-white/10 text-slate-400'
+                      }`}
+                    >
+                      {format.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
-                {hasMultipleImages && (
-                  <button
-                    type="button"
-                    onClick={clearAllImages}
-                    className="text-xs text-rose-400 hover:text-rose-300 transition-colors flex-shrink-0 whitespace-nowrap"
-                  >
-                    Clear all
-                  </button>
-                )}
               </div>
-              <ImageQueue onAddMore={open} />
-            </div>
-          )}
 
-          {/* Export Settings Section */}
-          <div className="space-y-3 min-w-0">
-            <div>
-              <h2 className="text-sm font-semibold text-white mb-1">Export Settings</h2>
-              <p className="text-xs text-slate-400 break-words">Configure output format and quality</p>
-            </div>
-
-            {/* Format Selection */}
-            <div className="space-y-2 rounded-2xl border border-white/10 p-3 text-xs">
-              <legend className="text-xs uppercase tracking-wide text-slate-400 mb-2">
-                Format
-              </legend>
-              <div className="flex gap-2">
-                {(['png', 'jpeg'] as const).map((format) => (
-                  <button
-                    key={format}
-                    type="button"
-                    onClick={() => setExportOptions({ format })}
-                    className={`flex-1 rounded-lg border px-3 py-2 font-semibold capitalize ${
-                      exportOptions.format === format
-                        ? 'border-white bg-white/10 text-white'
-                        : 'border-white/10 text-slate-400'
-                    }`}
-                  >
-                    {format.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Quality Selection */}
-            <div className="space-y-3 rounded-2xl border border-white/10 p-3 text-xs min-w-0">
-              <PresetButtons
-                presets={QUALITY_PRESETS}
-                currentValue={exportOptions.quality}
-                onChange={(quality) => setExportOptions({ quality })}
-              />
-              <span className="block text-center text-slate-500 whitespace-nowrap">or fine tune</span>
-              <label className="flex flex-col gap-1 min-w-0">
-                <span className="whitespace-nowrap">Custom quality: {qualityLabel}%</span>
-                <input
-                  type="range"
-                  min={0.5}
-                  max={1}
-                  step={0.01}
-                  value={exportOptions.quality}
-                  onChange={(event) => setExportOptions({ quality: Number(event.target.value) })}
+              {/* Quality Selection */}
+              <div className="space-y-3 rounded-2xl border border-white/10 p-3 text-xs min-w-0">
+                <PresetButtons
+                  presets={QUALITY_PRESETS}
+                  currentValue={exportOptions.quality}
+                  onChange={(quality) => setExportOptions({ quality })}
                 />
-              </label>
+                <span className="block text-center text-slate-500 whitespace-nowrap">or fine tune</span>
+                <label className="flex flex-col gap-1 min-w-0">
+                  <span className="whitespace-nowrap">Custom quality: {qualityLabel}%</span>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={1}
+                    step={0.01}
+                    value={exportOptions.quality}
+                    onChange={(event) => setExportOptions({ quality: Number(event.target.value) })}
+                  />
+                </label>
+              </div>
             </div>
-          </div>
 
-          {/* Export Button */}
-          <div className="space-y-3 min-w-0">
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={!isReady}
-              className={`w-full rounded-lg px-5 py-3 text-sm font-semibold transition truncate ${
-                isReady
-                  ? 'bg-white text-black hover:bg-slate-100'
-                  : 'bg-white/10 text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              {isExporting
-                ? 'Exporting…'
-                : hasMultipleImages
-                ? `Export All (${images.length})`
-                : canShare
-                ? 'Share'
-                : 'Export'}
-            </button>
+            {/* Export Button */}
+            <div className="space-y-3 min-w-0">
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={!isReady}
+                className={`w-full rounded-lg px-5 py-3 text-sm font-semibold transition truncate ${
+                  isReady
+                    ? 'bg-white text-black hover:bg-slate-100'
+                    : 'bg-white/10 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                {isExporting
+                  ? 'Exporting…'
+                  : hasMultipleImages
+                  ? `Export All (${images.length})`
+                  : canShare
+                  ? 'Share'
+                  : 'Export'}
+              </button>
 
-            {!hasImages && (
-              <p className="text-xs text-slate-500 text-center break-words">
-                Import an image to enable export.
-              </p>
-            )}
+              {!hasImages && (
+                <p className="text-xs text-slate-500 text-center break-words">
+                  Import an image to enable export.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

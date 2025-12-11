@@ -26,7 +26,7 @@ export const QueueThumbnail = ({
 
   return (
     <div
-      className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden cursor-pointer transition-all ${
+      className={`group relative w-full aspect-square rounded-lg overflow-hidden cursor-pointer transition-all ${
         isActive
           ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900'
           : 'opacity-60 hover:opacity-100'
@@ -59,8 +59,11 @@ export const QueueThumbnail = ({
       <button
         type="button"
         onClick={handleRemove}
-        className="absolute bottom-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ opacity: isActive ? 1 : undefined }}
+        className={`absolute bottom-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 text-white/80 hover:bg-red-500 hover:text-white transition-opacity ${
+          isActive
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+        }`}
         title="Remove image"
       >
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
