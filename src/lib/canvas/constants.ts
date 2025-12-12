@@ -19,6 +19,12 @@ export const CANVAS = {
   MIN_WIDTH: 240,
   /** Maximum canvas width in pixels */
   MAX_WIDTH: 1400,
+  /** Minimum canvas width on mobile */
+  MOBILE_MIN_WIDTH: 200,
+  /** Maximum canvas width ratio on mobile (percentage of viewport) */
+  MOBILE_MAX_WIDTH_RATIO: 0.9,
+  /** Available width ratio on mobile (percentage of viewport) */
+  MOBILE_AVAILABLE_RATIO: 0.95,
 } as const
 
 export const RESIZE = {

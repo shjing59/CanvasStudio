@@ -232,8 +232,8 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   cropMode: false,
 
   // Layout state
-  leftDrawerOpen: true,
-  rightDrawerOpen: true,
+  leftDrawerOpen: false,
+  rightDrawerOpen: false,
 
   // Image queue state
   images: [],

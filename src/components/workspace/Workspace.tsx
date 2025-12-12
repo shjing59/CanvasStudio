@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { useResponsive } from '../../hooks/useResponsive'
 
 interface WorkspaceProps {
   children: ReactNode
@@ -24,12 +25,22 @@ const CheckerboardPattern = () => (
 /**
  * Workspace component - full-screen container with checkerboard pattern.
  * This layer is never exported and always fills the entire screen.
+ * On mobile, accounts for bottom navigation bar.
  */
 export const Workspace = ({ children }: WorkspaceProps) => {
+  const { isMobile } = useResponsive()
+  
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-200 overflow-hidden">
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-gray-200 overflow-hidden"
+      style={
+        isMobile
+          ? { paddingBottom: '64px' } // Account for mobile nav bar
+          : {}
+      }
+    >
       <CheckerboardPattern />
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 w-full h-full flex items-center justify-center">{children}</div>
     </div>
   )
 }

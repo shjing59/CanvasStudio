@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode, forwardRef, useImperativeHandle } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { CANVAS } from '../../lib/canvas/constants'
 
 interface CanvasProps {
@@ -14,6 +15,7 @@ interface CanvasProps {
  * Positioned at the center of the workspace.
  */
 export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, children, onSizeChange }, ref) => {
+  const { isMobile, windowSize: responsiveWindowSize } = useResponsive()
   const background = useCanvasStore((state) => state.background)
   // Initialize with actual window size if available, otherwise use defaults
   const [windowSize, setWindowSize] = useState(() => {
@@ -24,9 +26,15 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
   })
   const canvasRef = useRef<HTMLDivElement>(null)
 
+  // Use responsive hook's windowSize (it's always updated), fallback to local state for initial render
+  const effectiveWindowSize = responsiveWindowSize.width > 0 && responsiveWindowSize.height > 0 
+    ? responsiveWindowSize 
+    : windowSize
+
   // Expose the ref
   useImperativeHandle(ref, () => canvasRef.current as HTMLDivElement)
 
+  // Keep local windowSize in sync as fallback (responsive hook handles primary updates)
   useEffect(() => {
     const updateSize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight })
@@ -38,9 +46,44 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
   }, [])
 
   const canvasSize = useMemo(() => {
-    // Use viewport dimensions for responsive sizing (leave some margin)
-    const availableWidth = windowSize.width > 0 ? windowSize.width * 0.8 : CANVAS.MIN_WIDTH
-    const availableHeight = windowSize.height > 0 ? windowSize.height * 0.8 : CANVAS.MIN_WIDTH / aspectRatio
+    // Mobile-specific sizing
+    if (isMobile) {
+      // Account for mobile nav bar (64px) and some padding
+      const mobileNavHeight = 64
+      const mobilePadding = 16
+      const availableWidth = effectiveWindowSize.width > 0 
+        ? effectiveWindowSize.width * CANVAS.MOBILE_AVAILABLE_RATIO 
+        : CANVAS.MOBILE_MIN_WIDTH
+      const availableHeight = effectiveWindowSize.height > 0
+        ? (effectiveWindowSize.height - mobileNavHeight - mobilePadding) * CANVAS.MOBILE_AVAILABLE_RATIO
+        : CANVAS.MOBILE_MIN_WIDTH / aspectRatio
+
+      // Calculate width that fits within available space
+      let width = Math.min(availableWidth, effectiveWindowSize.width * CANVAS.MOBILE_MAX_WIDTH_RATIO)
+      let height = width / aspectRatio
+
+      // If height exceeds available space, scale down
+      if (height > availableHeight) {
+        height = availableHeight
+        width = height * aspectRatio
+      }
+
+      // Ensure minimum size
+      if (width < CANVAS.MOBILE_MIN_WIDTH) {
+        width = CANVAS.MOBILE_MIN_WIDTH
+        height = width / aspectRatio
+      }
+
+      return { width, height }
+    }
+
+    // Desktop sizing (original logic)
+    const availableWidth = effectiveWindowSize.width > 0 
+      ? effectiveWindowSize.width * 0.8 
+      : CANVAS.MIN_WIDTH
+    const availableHeight = effectiveWindowSize.height > 0 
+      ? effectiveWindowSize.height * 0.8 
+      : CANVAS.MIN_WIDTH / aspectRatio
 
     // Calculate width that fits within available space while maintaining aspect ratio
     let width = Math.min(availableWidth, CANVAS.MAX_WIDTH)
@@ -59,7 +102,7 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
     }
 
     return { width, height }
-  }, [windowSize.width, windowSize.height, aspectRatio])
+  }, [isMobile, effectiveWindowSize.width, effectiveWindowSize.height, aspectRatio])
 
   // Notify parent of size changes
   useEffect(() => {

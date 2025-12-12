@@ -1,7 +1,8 @@
-import { useCallback, useState, useMemo } from 'react'
+import { useCallback, useState, useMemo, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useExportImage } from '../../hooks/useExportImage'
 import { useCanvasStore } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { ImageQueue } from '../queue/ImageQueue'
 import { PresetButtons } from '../ui/PresetButtons'
 import { QUALITY_PRESETS } from '../../constants/presets'
@@ -11,8 +12,11 @@ import { QUALITY_PRESETS } from '../../constants/presets'
  * Replaces functionality from BottomToolbar and ExportSettingsPanel.
  */
 export const LeftDrawer = () => {
+  const { isMobile } = useResponsive()
   const leftDrawerOpen = useCanvasStore((state) => state.leftDrawerOpen)
+  const rightDrawerOpen = useCanvasStore((state) => state.rightDrawerOpen)
   const toggleLeftDrawer = useCanvasStore((state) => state.toggleLeftDrawer)
+  const setRightDrawerOpen = useCanvasStore((state) => state.setRightDrawerOpen)
   const loadImages = useCanvasStore((state) => state.loadImages)
   const images = useCanvasStore((state) => state.images)
   const activeImageId = useCanvasStore((state) => state.activeImageId)
@@ -21,6 +25,26 @@ export const LeftDrawer = () => {
   const setExportOptions = useCanvasStore((state) => state.setExportOptions)
   const { exportImage, exportAllImages, isExporting, canShare } = useExportImage()
   const [error, setError] = useState<string | null>(null)
+
+  // Auto-close right drawer when opening left drawer on mobile
+  const handleToggle = useCallback(() => {
+    if (isMobile && !leftDrawerOpen && rightDrawerOpen) {
+      setRightDrawerOpen(false)
+    }
+    toggleLeftDrawer()
+  }, [isMobile, leftDrawerOpen, rightDrawerOpen, toggleLeftDrawer, setRightDrawerOpen])
+
+  // Prevent body scroll when drawer is open on mobile
+  useEffect(() => {
+    if (isMobile && leftDrawerOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobile, leftDrawerOpen])
 
   const hasImages = images.length > 0
   const hasMultipleImages = images.length > 1
@@ -66,30 +90,44 @@ export const LeftDrawer = () => {
 
   return (
     <>
-      {/* Toggle button on right edge */}
-      <button
-        type="button"
-        onClick={toggleLeftDrawer}
-        className={`fixed top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-8 h-16 rounded-r-lg bg-canvas-control/80 backdrop-blur border border-l-0 border-white/10 text-white/60 hover:text-white hover:bg-canvas-control transition-all ${
-          leftDrawerOpen ? 'left-[300px]' : 'left-0'
-        }`}
-        title={leftDrawerOpen ? 'Hide import/export panel' : 'Show import/export panel'}
-      >
-        <svg
-          className={`w-4 h-4 transition-transform ${leftDrawerOpen ? '' : 'rotate-180'}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      {/* Toggle button on right edge - hidden on mobile (will use bottom nav) */}
+      {!isMobile && (
+        <button
+          type="button"
+          onClick={handleToggle}
+          className={`fixed top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-8 h-16 rounded-r-lg bg-canvas-control/80 backdrop-blur border border-l-0 border-white/10 text-white/60 hover:text-white hover:bg-canvas-control transition-all ${
+            leftDrawerOpen ? 'left-[300px]' : 'left-0'
+          }`}
+          title={leftDrawerOpen ? 'Hide import/export panel' : 'Show import/export panel'}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
+          <svg
+            className={`w-4 h-4 transition-transform ${leftDrawerOpen ? '' : 'rotate-180'}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Backdrop overlay for mobile */}
+      {isMobile && leftDrawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          onClick={handleToggle}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Drawer */}
       <div
-        className={`fixed left-0 top-0 z-20 h-screen w-[300px] bg-canvas-control/90 backdrop-blur border-r border-white/10 transition-transform duration-300 ease-in-out overflow-x-hidden ${
+        className={`fixed left-0 top-0 bg-canvas-control/90 backdrop-blur border-r border-white/10 transition-transform duration-300 ease-in-out overflow-x-hidden ${
+          isMobile ? 'w-full z-[60]' : 'z-20 w-[300px] h-screen'
+        } ${
           leftDrawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={isMobile ? { height: 'calc(100vh - 64px)', bottom: '64px' } : undefined}
       >
         <div className="flex h-full flex-col">
           <div className="flex-1 overflow-y-auto">
