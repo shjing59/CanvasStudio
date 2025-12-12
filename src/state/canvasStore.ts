@@ -598,11 +598,15 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       // Generate fully filtered image cache (expensive operation, done once when filter is applied)
       const filteredImageFull = generateFilteredImageFull(activeImage.image, result.lutData)
 
+      // Use recommended intensity if provided, otherwise default to 1.0
+      const defaultIntensity = filterMetadata.recommendedIntensity ?? 1.0
+      const clampedIntensity = clamp(defaultIntensity, 0, 1)
+
       // Create filter state with cached fully filtered image
       const filterState: FilterState = {
         filterId,
         lutData: result.lutData,
-        intensity: 1.0,
+        intensity: clampedIntensity,
         filteredImageFull,
       }
 

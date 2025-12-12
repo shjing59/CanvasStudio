@@ -49,6 +49,10 @@ export interface FilterMetadata {
   filePath?: string
   thumbnail?: string
   description?: string
+  /** Recommended default intensity (0-1). If not provided, defaults to 1.0 */
+  recommendedIntensity?: number
+  /** Filter category for organization */
+  category?: string
 }
 
 /**
