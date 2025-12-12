@@ -19,4 +19,11 @@ body {
 
 #root {
   min-height: 100vh;
+  /* Support for safe areas on mobile devices (notches, home indicators) */
+  min-height: 100dvh; /* Dynamic viewport height */
+}
+
+/* Safe area support for mobile navigation */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }

@@ -1,4 +1,5 @@
 import type { ImageMetadata } from './image'
+import type { FilterState } from './filter'
 
 export type RatioOptionId =
   | '1:1'
@@ -63,6 +64,7 @@ export interface CanvasSnapshot {
   image?: ImageMetadata
   transform: TransformState
   crop: CropState | null
+  filter: FilterState | null
   borders: { top: BorderSetting; bottom: BorderSetting }
   background: string
   dimensions: CanvasDimensions

@@ -1,14 +1,17 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { useCanvasStore, selectFitScale } from '../../state/canvasStore'
 import { SCALE } from '../../lib/canvas/constants'
 import { cropToCanvasCoords } from '../../lib/canvas/crop'
+import { renderScene } from '../../lib/canvas/render'
 import type { ImageMetadata } from '../../types/image'
 import type { TransformState, CropState } from '../../types/canvas'
+import type { FilterState } from '../../types/filter'
 
 interface ImageLayerProps {
   image: ImageMetadata
   transform: TransformState
   crop: CropState | null
+  filter: FilterState | null
   canvasWidth: number
   canvasHeight: number
   /** When true, crop clipping is not applied (used during crop editing) */
@@ -24,11 +27,13 @@ interface ImageLayerProps {
  * - Applies crop clipping when crop is defined (unless disableCropClip is true)
  * - Does NOT initialize or calculate scale (that's the store's job)
  */
-export const ImageLayer = ({ image, transform, crop, canvasWidth, canvasHeight, disableCropClip = false }: ImageLayerProps) => {
+export const ImageLayer = ({ image, transform, crop, filter, canvasWidth, canvasHeight, disableCropClip = false }: ImageLayerProps) => {
   const updateTransform = useCanvasStore((state) => state.updateTransform)
   const fitScale = useCanvasStore(selectFitScale)
+  const background = useCanvasStore((state) => state.background)
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{
     x: number
@@ -108,6 +113,39 @@ export const ImageLayer = ({ image, transform, crop, canvasWidth, canvasHeight, 
     [isDragging]
   )
 
+  // Render to canvas when filter is present
+  useEffect(() => {
+    if (!filter?.lutData || !canvasRef.current) return
+
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d', { colorSpace: 'srgb' })
+    if (!ctx) return
+
+    // Set canvas size to match container
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = canvasWidth * dpr
+    canvas.height = canvasHeight * dpr
+    canvas.style.width = `${canvasWidth}px`
+    canvas.style.height = `${canvasHeight}px`
+    ctx.scale(dpr, dpr)
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+
+    // Render scene with filter
+    renderScene({
+      ctx,
+      width: canvasWidth,
+      height: canvasHeight,
+      background,
+      transform,
+      crop: disableCropClip ? null : crop,
+      filter,
+      image,
+      borders: { top: 0, bottom: 0 },
+    })
+  }, [image, transform, crop, filter, canvasWidth, canvasHeight, background, disableCropClip])
+
   // Don't render if canvas dimensions aren't available or we don't have image dimensions
   if (canvasWidth <= 0 || canvasHeight <= 0 || imgNaturalWidth <= 0 || imgNaturalHeight <= 0) {
     return null
@@ -133,6 +171,9 @@ export const ImageLayer = ({ image, transform, crop, canvasWidth, canvasHeight, 
     clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`
   }
 
+  // Use canvas when filter is present, otherwise use img tag
+  const hasFilter = filter?.lutData
+
   return (
     <div
       ref={containerRef}
@@ -147,20 +188,35 @@ export const ImageLayer = ({ image, transform, crop, canvasWidth, canvasHeight, 
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      <img
-        src={image.element.src}
-        alt="Canvas image"
-        draggable={false}
-        style={{
-          width: displayWidth,
-          height: displayHeight,
-          position: 'absolute',
-          left: offsetLeft,
-          top: offsetTop,
-          userSelect: 'none',
-          pointerEvents: 'none',
-        }}
-      />
+      {hasFilter ? (
+        <canvas
+          ref={canvasRef}
+          className="absolute"
+          style={{
+            left: 0,
+            top: 0,
+            width: canvasWidth,
+            height: canvasHeight,
+            userSelect: 'none',
+            pointerEvents: 'none',
+          }}
+        />
+      ) : (
+        <img
+          src={image.element.src}
+          alt="Canvas image"
+          draggable={false}
+          style={{
+            width: displayWidth,
+            height: displayHeight,
+            position: 'absolute',
+            left: offsetLeft,
+            top: offsetTop,
+            userSelect: 'none',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
     </div>
   )
 }

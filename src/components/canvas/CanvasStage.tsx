@@ -51,6 +51,7 @@ export const CanvasStage = () => {
               image={activeImageState.image}
               transform={activeImageState.transform}
               crop={activeImageState.crop}
+              filter={activeImageState.filter}
               canvasWidth={canvasSize.width}
               canvasHeight={canvasSize.height}
               disableCropClip={cropMode} // Don't clip during crop editing

@@ -1,5 +1,6 @@
 import type { TransformState, CropState } from '../../types/canvas'
 import type { ImageMetadata } from '../../types/image'
+import type { FilterState } from '../../types/filter'
 import { cropToCanvasCoords } from './crop'
 
 interface SceneParams {
@@ -9,6 +10,7 @@ interface SceneParams {
   background: string
   transform: TransformState
   crop?: CropState | null
+  filter?: FilterState | null
   borders: { top: number; bottom: number }
   image?: ImageMetadata
   visibleCenterOffset?: number
@@ -27,6 +29,7 @@ export function renderScene({
   background,
   transform,
   crop,
+  filter,
   image,
 }: SceneParams) {
   // Fill canvas background (white by default)
@@ -56,13 +59,32 @@ export function renderScene({
     ctx.clip()
   }
 
-  // Draw image with transform: translate(x, y) scale(scale)
+  // Draw image (filtered or original) with transforms
   ctx.save()
   ctx.translate(originX, originY)
   ctx.scale(transform.scale, transform.scale)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(image.element, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
+  
+  // If filter exists and intensity > 0, blend between original and fully filtered image
+  if (filter?.filteredImageFull && filter.intensity > 0) {
+    if (filter.intensity >= 1.0) {
+      // Full intensity - just draw filtered image
+      ctx.drawImage(filter.filteredImageFull, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
+    } else {
+      // Partial intensity - blend original and filtered
+      // Draw original first
+      ctx.drawImage(image.element, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
+      // Blend filtered image on top
+      ctx.globalAlpha = filter.intensity
+      ctx.drawImage(filter.filteredImageFull, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
+      ctx.globalAlpha = 1.0
+    }
+  } else {
+    // No filter or intensity is 0 - draw original image
+    ctx.drawImage(image.element, -imgNaturalWidth / 2, -imgNaturalHeight / 2, imgNaturalWidth, imgNaturalHeight)
+  }
+  
   ctx.restore()
 
   // Restore from crop clipping

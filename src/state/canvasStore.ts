@@ -11,6 +11,10 @@ import {
   applyPositionDelta,
 } from '../lib/canvas/transform'
 import { loadImageFromFile, loadImagesFromFiles } from '../lib/image/loadImage'
+import { filterLoaderRegistry } from '../lib/filters/loader'
+import { CubeLoader } from '../lib/filters/formats/cube'
+import { BUILTIN_FILTERS, loadBuiltinFilter } from '../lib/filters/presets'
+import { generateFilteredImageFull } from '../lib/filters/cache'
 import type {
   BorderSetting,
   CanvasSnapshot,
@@ -20,6 +24,7 @@ import type {
   TransformState,
 } from '../types/canvas'
 import type { ImageMetadata, ImageState } from '../types/image'
+import type { FilterState } from '../types/filter'
 
 type BorderKey = 'top' | 'bottom'
 
@@ -91,6 +96,12 @@ export interface CanvasStoreState extends CanvasSettings, ImageQueueState, Layou
   toggleCropMode: () => void
   setCropAspectLock: (lock: boolean, aspect?: number) => void
 
+  // Filter actions (apply to active image)
+  setFilter: (filterId: string | null) => Promise<void>
+  setFilterIntensity: (intensity: number) => void
+  loadFilterFromFile: (file: File) => Promise<void>
+  removeFilter: () => void
+
   // Layout actions
   toggleLeftDrawer: () => void
   toggleRightDrawer: () => void
@@ -111,6 +122,11 @@ export interface CanvasStoreState extends CanvasSettings, ImageQueueState, Layou
 }
 
 const initialBorder: BorderSetting = { value: 0, unit: 'px' }
+
+// Initialize filter system - register loaders
+if (filterLoaderRegistry.getSupportedFormats().length === 0) {
+  filterLoaderRegistry.register(new CubeLoader())
+}
 
 // ============================================================================
 // INTERNAL HELPERS
@@ -216,8 +232,8 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   cropMode: false,
 
   // Layout state
-  leftDrawerOpen: true,
-  rightDrawerOpen: true,
+  leftDrawerOpen: false,
+  rightDrawerOpen: false,
 
   // Image queue state
   images: [],
@@ -232,11 +248,12 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const image = await loadImageFromFile(file)
     const state = get()
 
-    // Create new image state with default transform and no crop
+    // Create new image state with default transform, no crop, and no filter
     const newImageState: ImageState = {
       image,
       transform: { x: 0, y: 0, scale: 1 },
       crop: null,
+      filter: null,
       isEdited: false,
     }
 
@@ -259,11 +276,12 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
     const images = await loadImagesFromFiles(files)
     const state = get()
 
-    // Create image states for all (with no crop)
+    // Create image states for all (with no crop and no filter)
     const newImageStates: ImageState[] = images.map((image) => ({
       image,
       transform: { x: 0, y: 0, scale: 1 },
       crop: null,
+      filter: null,
       isEdited: false,
     }))
 
@@ -536,6 +554,154 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   },
 
   // ========================================================================
+  // FILTER ACTIONS (apply to active image)
+  // ========================================================================
+
+  async setFilter(filterId: string | null) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) {
+      console.warn('setFilter: No active image')
+      return
+    }
+
+    // If removing filter
+    if (filterId === null) {
+      set({
+        images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+          ...img,
+          filter: null,
+        })),
+      })
+      return
+    }
+
+    // Find built-in filter
+    const filterMetadata = BUILTIN_FILTERS.find((f) => f.id === filterId)
+    if (!filterMetadata) {
+      throw new Error(`Filter not found: ${filterId}`)
+    }
+
+    try {
+      // Load the filter file
+      const file = await loadBuiltinFilter(filterMetadata)
+      
+      // Find appropriate loader
+      const loader = filterLoaderRegistry.findLoader(file)
+      if (!loader) {
+        throw new Error(`No loader found for filter format: ${filterMetadata.format}`)
+      }
+
+      // Load and parse the filter
+      const result = await loader.load(file)
+
+      // Generate fully filtered image cache (expensive operation, done once when filter is applied)
+      const filteredImageFull = generateFilteredImageFull(activeImage.image, result.lutData)
+
+      // Use recommended intensity if provided, otherwise default to 1.0
+      const defaultIntensity = filterMetadata.recommendedIntensity ?? 1.0
+      const clampedIntensity = clamp(defaultIntensity, 0, 1)
+
+      // Create filter state with cached fully filtered image
+      const filterState: FilterState = {
+        filterId,
+        lutData: result.lutData,
+        intensity: clampedIntensity,
+        filteredImageFull,
+      }
+
+      // Update image state
+      set({
+        images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+          ...img,
+          filter: filterState,
+        })),
+      })
+    } catch (error) {
+      console.error('Failed to load filter:', error)
+      throw error
+    }
+  },
+
+  setFilterIntensity(intensity: number) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage || !activeImage.filter) return
+
+    const clampedIntensity = clamp(intensity, 0, 1)
+
+    // Just update intensity - no need to regenerate cache!
+    // The renderer will blend between original and filteredImageFull based on intensity
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        filter: img.filter
+          ? {
+              ...img.filter,
+              intensity: clampedIntensity,
+              // filteredImageFull stays the same - we blend in real-time
+            }
+          : null,
+      })),
+    })
+  },
+
+  async loadFilterFromFile(file: File) {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    try {
+      // Find appropriate loader
+      const loader = filterLoaderRegistry.findLoader(file)
+      if (!loader) {
+        throw new Error(`Unsupported filter format. Supported formats: ${filterLoaderRegistry.getSupportedFormats().join(', ')}`)
+      }
+
+      // Load and parse the filter
+      const result = await loader.load(file)
+
+      // Generate a unique ID for user-uploaded filter
+      const filterId = `user-${crypto.randomUUID()}`
+
+      // Generate fully filtered image cache (expensive operation, done once)
+      const filteredImageFull = generateFilteredImageFull(activeImage.image, result.lutData)
+
+      // Create filter state with cached fully filtered image
+      const filterState: FilterState = {
+        filterId,
+        lutData: result.lutData,
+        intensity: 1.0,
+        filteredImageFull,
+      }
+
+      // Update image state
+      set({
+        images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+          ...img,
+          filter: filterState,
+        })),
+      })
+    } catch (error) {
+      console.error('Failed to load filter from file:', error)
+      throw error
+    }
+  },
+
+  removeFilter() {
+    const state = get()
+    const activeImage = getActiveImageState(state)
+    if (!activeImage) return
+
+    set({
+      images: updateImageInQueue(state.images, activeImage.image.id, (img) => ({
+        ...img,
+        filter: null,
+      })),
+    })
+  },
+
+  // ========================================================================
   // SETTINGS ACTIONS
   // ========================================================================
 
@@ -628,6 +794,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
         image: activeImage.image,
         transform: activeImage.transform,
         crop: activeImage.crop,
+        filter: activeImage.filter,
         canvasWidth: state.previewSize.width,
         canvasHeight: state.previewSize.height,
         background: state.background,
@@ -641,6 +808,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
       image: undefined,
       transform: { x: 0, y: 0, scale: 1 },
       crop: null,
+      filter: null,
       borders: state.borders,
       background: state.background,
       dimensions: deriveDimensions(state),

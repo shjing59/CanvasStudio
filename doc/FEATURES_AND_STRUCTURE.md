@@ -1,6 +1,6 @@
 ## A. Overview
 
-CanvasStudio is a production-ready Vite + React (TS) application that recreates InShot's canvas workflow with extra framing controls. It ingests high-resolution imagery, preserves EXIF metadata, lets the user stage any aspect ratio (including custom/original), and exports in sRGB at either canvas or source resolution.
+CanvasStudio is a production-ready Vite + React (TS) application that recreates InShot's canvas workflow with extra framing controls. It ingests high-resolution imagery, preserves EXIF metadata, lets the user stage any aspect ratio (including custom/original), applies LUT color grading filters, and exports in sRGB at either canvas or source resolution.
 
 ## B. Feature List
 
@@ -33,6 +33,13 @@ CanvasStudio is a production-ready Vite + React (TS) application that recreates 
 - **Background colors**
   - Preset colors: White, Black, Light Gray, Dark Gray, Transparent.
   - Custom color via color picker and hex input.
+- **LUT Filters**
+  - Built-in color grading filters (Fujifilm F-Log to Rec709 conversions).
+  - Custom filter upload (.cube format).
+  - Real-time intensity control (0-100%) with smooth blending.
+  - Per-image filter state (each image can have its own filter).
+  - Cached filter processing for optimal performance during drag/resize.
+  - Filters apply only to image pixels, preserving canvas background.
 - **Export**
   - Format: PNG or JPEG (sRGB).
   - Quality presets (100%, 90%, 80%) plus custom slider (50–100%).
@@ -59,6 +66,7 @@ src/
       ControlPanel.tsx         # Container for all control panels
       CropPanel.tsx            # Crop mode toggle and aspect presets
       ExportSettingsPanel.tsx  # Export format and quality settings
+      FilterPanel.tsx          # LUT filter selection and intensity control
       RatioPanel.tsx           # Aspect ratio selection + custom inputs
       TransformPanel.tsx       # Position & scale controls
     image/
@@ -81,16 +89,27 @@ src/
       crop.ts                  # Pure crop math functions (cropToCanvasCoords, resizeCropFromHandle with imageAspect, etc.)
       math.ts                  # computeFitScale, computeDefaultScale, clamp
       ratios.ts                # Ratio catalog + findRatioValue helper
-      render.ts                # Single draw routine for preview/export (with crop clipping)
+      render.ts                # Single draw routine for preview/export (with crop clipping and filter support)
       transform.ts             # Pure transform functions (computeInitialTransform, etc.)
     export/
       exportCanvas.ts          # Export pipeline (exportComposite, exportSingleImage, exportMultipleImages)
+    filters/
+      cache.ts                # Filter image caching (generateFilteredImageFull)
+      formats/
+        base.ts               # Base loader class for filter formats
+        cube.ts               # .cube format loader and parser
+        index.ts              # Format loader exports
+      index.ts                # Public filter API exports
+      loader.ts               # Filter loader registry and interface
+      presets.ts              # Built-in filter definitions and metadata
+      processor.ts            # LUT application logic (trilinear interpolation)
     image/
-      loadImage.ts             # EXIF parsing + image loader (loadImageFromFile, loadImagesFromFiles)
+      loadImage.ts            # EXIF parsing + image loader (loadImageFromFile, loadImagesFromFiles)
   state/
     canvasStore.ts             # Zustand store (single source of truth)
   types/
     canvas.ts                  # Canvas-related types (ratios, borders, transform)
+    filter.ts                  # Filter-related types (LUTData, FilterState, FilterMetadata)
     image.ts                   # ImageMetadata, ImageState types
 ```
 
@@ -131,22 +150,30 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 
 8. **Separation of canvas settings vs image state** – Store cleanly separates:
    - **CanvasSettings**: ratioId, customRatio, background, centerSnap, cropMode, exportOptions, previewSize (shared across all images)
-   - **ActiveImageState**: image, transform, crop, isEdited (per-image in filmstrip queue)
+   - **ActiveImageState**: image, transform, crop, filter, isEdited (per-image in filmstrip queue)
 
-9. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity.
+9. **Shared renderer** – `renderScene` is used by both the live canvas and the exporter, ensuring WYSIWYG parity. Handles filter application with cached filtered images (generated once when filter is applied) and real-time intensity blending (no reprocessing during intensity changes).
 
-10. **Modular controls** – Each concern (import, ratio, transform, background, export) lives in its own component.
+10. **Modular controls** – Each concern (import, ratio, transform, filter, background, export) lives in its own component.
 
 11. **Pointer-based gestures** – Direct pointer event handling for drag/zoom provides precise control.
 
 12. **Extensible for filmstrip queue** – Architecture is ready for multi-image support:
     - `ImageMetadata` has unique `id` field
-    - `ImageState` type bundles image + transform + crop + isEdited flag
+    - `ImageState` type bundles image + transform + crop + filter + isEdited flag
     - `loadImagesFromFiles()` can load multiple images
     - `exportSingleImage()` / `exportMultipleImages()` for batch export
     - Dropzone accepts multiple files
 
-13. **Non-destructive crop system** – Follows industry-standard transform + crop overlay model:
+13. **Extensible filter system** – Plugin-based architecture for filter formats:
+    - `FilterLoader` interface allows easy addition of new formats (cube, 3dl, png, json)
+    - `FilterLoaderRegistry` manages format detection and loading
+    - Filter processing separated from loading/parsing
+    - Cached filtered images for performance (generated once, reused during interactions)
+    - Real-time intensity blending (no reprocessing needed)
+    - Per-filter recommended intensity support
+
+14. **Non-destructive crop system** – Follows industry-standard transform + crop overlay model:
     - `CropState` stored per-image (normalized 0-1 coordinates)
     - Crop is independent from transform (zoom/pan applies to full image)
     - `lib/canvas/crop.ts` contains pure functions for crop math
@@ -159,11 +186,16 @@ Additional root files: `FEATURES_AND_STRUCTURE.md`, `README.md`, `tailwind.confi
 
 - **Photo templates** – Vintage film frames (Kodak, Polaroid, Instax), social media templates, and custom overlays that auto-set canvas ratio, crop constraints, and frame graphics.
 - **Filmstrip queue** – Multi-image import with thumbnail strip, per-image transforms, batch export.
-- **Filters & adjustments** – Integrate GPU-accelerated filters (WebGL or Canvas2D) with stackable adjustment layers.
+- **Filter enhancements**:
+  - WebGL shader acceleration for faster processing on large images
+  - Additional format support (3DL, PNG LUT, JSON)
+  - Filter categories and search
+  - Filter stacking (multiple filters with blend modes)
+  - Filter presets (save filter + intensity combinations)
 - **Multi-background system** – Extend background picker with gradients, textures, and color palettes tied to brand presets.
 - **Preset management** – Allow saving/loading custom ratio + border + transform presets per social network.
 - **Collaboration hooks** – Shareable links or JSON exports for designers to hand off settings.
-- **Undo/redo** – Add history stack for transform operations.
+- **Undo/redo** – Add history stack for transform and filter operations.
 
 ## F. Coding Conventions
 
