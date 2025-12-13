@@ -1,4 +1,4 @@
-import type { FilterFormat, FilterLoader, LoaderResult } from '../../types/filter'
+import type { FilterFormat, LoaderResult } from '../../types/filter'
 
 /**
  * Base interface for all filter format loaders
@@ -53,8 +53,6 @@ export class FilterLoaderRegistry {
    * Find the appropriate loader for a file
    */
   findLoader(file: File): FilterLoader | undefined {
-    const fileName = file.name.toLowerCase()
-    
     for (const loader of this.loaders.values()) {
       if (loader.canLoad(file)) {
         return loader
