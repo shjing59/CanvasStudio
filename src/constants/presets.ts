@@ -19,6 +19,7 @@ export const RESOLUTION_PRESETS = [
 // Background color presets
 export const BACKGROUND_COLORS = [
   { label: 'White', value: '#ffffff' },
+  { label: 'Off-White', value: '#F2F0EF' },
   { label: 'Black', value: '#000000' },
   { label: 'Light Gray', value: '#f5f5f5' },
   { label: 'Dark Gray', value: '#1a1a1a' },

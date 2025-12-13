@@ -1,4 +1,5 @@
-import type { ImageMetadata, FilterState, LUTData } from '../../types/filter'
+import type { FilterState, LUTData } from '../../types/filter'
+import type { ImageMetadata } from '../../types/image'
 import { applyLUTToCanvas } from './processor'
 
 /**
@@ -53,6 +54,6 @@ export function getFilteredImage(
   // For now, we'll always regenerate to ensure correctness
   // In the future, we could add a cache key based on filterId + intensity
   
-  // Generate filtered image
-  return generateFilteredImage(image, filter.lutData, filter.intensity)
+  // Generate filtered image at full intensity (cached version)
+  return generateFilteredImageFull(image, filter.lutData)
 }

@@ -1,4 +1,5 @@
-import type { FilterFormat, FilterLoader } from '../../../types/filter'
+import type { FilterFormat } from '../../../types/filter'
+import type { FilterLoader } from '../loader'
 
 /**
  * Base class for filter loaders

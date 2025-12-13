@@ -437,3 +437,4 @@ useEffect(() => {
 - All changes are additive or conditional
 - Desktop behavior preserved
 - Backward compatible
+

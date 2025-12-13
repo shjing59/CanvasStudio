@@ -97,7 +97,7 @@ export function useExportImage() {
         const imageState = images[i]
         setExportProgress({ current: i + 1, total: images.length })
 
-        const result = await exportSingleImage(imageState.image, imageState.transform, imageState.crop, settings)
+        const result = await exportSingleImage(imageState.image, imageState.transform, imageState.crop, imageState.filter || null, settings)
         results.push(result)
       }
 
