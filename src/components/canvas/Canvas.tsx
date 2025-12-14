@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, type ReactNode, forwardRef, useImperativeHandle } from 'react'
+import { useMemo, useEffect, useRef, type ReactNode, forwardRef, useImperativeHandle } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
 import { useResponsive } from '../../hooks/useResponsive'
 import { CANVAS } from '../../lib/canvas/constants'
@@ -15,55 +15,12 @@ interface CanvasProps {
  * Positioned at the center of the workspace.
  */
 export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, children, onSizeChange }, ref) => {
-  const { isMobile, windowSize: responsiveWindowSize } = useResponsive()
+  const { isMobile, windowSize: effectiveWindowSize } = useResponsive()
   const background = useCanvasStore((state) => state.background)
-  // Initialize with actual window size if available, otherwise use defaults
-  const [windowSize, setWindowSize] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return { width: window.innerWidth, height: window.innerHeight }
-    }
-    return { width: 0, height: 0 }
-  })
   const canvasRef = useRef<HTMLDivElement>(null)
-
-  // Use responsive hook's windowSize (it's always updated), fallback to local state for initial render
-  const effectiveWindowSize = responsiveWindowSize.width > 0 && responsiveWindowSize.height > 0 
-    ? responsiveWindowSize 
-    : windowSize
 
   // Expose the ref
   useImperativeHandle(ref, () => canvasRef.current as HTMLDivElement)
-
-  // Keep local windowSize in sync as fallback (responsive hook handles primary updates)
-  // Note: We still need this for initial render before useResponsive updates
-  useEffect(() => {
-    const updateSize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight })
-    }
-    // Update immediately in case window size changed
-    updateSize()
-    // Use passive listener and throttle via requestAnimationFrame
-    let rafId: number | null = null
-    let ticking = false
-    
-    const handleResize = () => {
-      if (!ticking) {
-        ticking = true
-        rafId = requestAnimationFrame(() => {
-          updateSize()
-          ticking = false
-        })
-      }
-    }
-    
-    window.addEventListener('resize', handleResize, { passive: true })
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
-      }
-    }
-  }, [])
 
   const canvasSize = useMemo(() => {
     // Mobile-specific sizing

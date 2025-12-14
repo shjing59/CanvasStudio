@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useCanvasStore, selectActiveImage } from '../../state/canvasStore'
 import { findRatioValue } from '../../lib/canvas/ratios'
 import { Workspace } from '../workspace/Workspace'
@@ -16,20 +17,39 @@ import { CropOverlay } from '../image/CropOverlay'
  * Now supports multiple images via the queue - shows the active image.
  */
 export const CanvasStage = () => {
-  const activeImageState = useCanvasStore(selectActiveImage)
-  const images = useCanvasStore((state) => state.images)
-  const ratioId = useCanvasStore((state) => state.ratioId)
-  const customRatio = useCanvasStore((state) => state.customRatio)
-  const cropMode = useCanvasStore((state) => state.cropMode)
-  const setPreviewSize = useCanvasStore((state) => state.setPreviewSize)
+  // Consolidated store subscription - single selector reduces re-renders
+  // Using useShallow for shallow comparison to prevent unnecessary re-renders
+  const {
+    activeImageState,
+    images,
+    ratioId,
+    customRatio,
+    cropMode,
+    setPreviewSize,
+  } = useCanvasStore(
+    useShallow((state) => ({
+      activeImageState: selectActiveImage(state),
+      images: state.images,
+      ratioId: state.ratioId,
+      customRatio: state.customRatio,
+      cropMode: state.cropMode,
+      setPreviewSize: state.setPreviewSize,
+    }))
+  )
+  
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null)
 
   // Calculate aspect ratio using active image (and crop if exists)
-  const aspectRatio = findRatioValue(ratioId, {
-    custom: customRatio,
-    image: activeImageState?.image,
-    crop: activeImageState?.crop,
-  })
+  // Memoized to prevent recalculation on every render
+  const aspectRatio = useMemo(
+    () =>
+      findRatioValue(ratioId, {
+        custom: customRatio,
+        image: activeImageState?.image,
+        crop: activeImageState?.crop,
+      }),
+    [ratioId, customRatio, activeImageState?.image, activeImageState?.crop]
+  )
 
   // Handle canvas size changes from Canvas component
   const handleCanvasSizeChange = (size: { width: number; height: number }) => {

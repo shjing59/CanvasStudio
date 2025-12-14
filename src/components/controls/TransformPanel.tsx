@@ -1,23 +1,37 @@
 import { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useCanvasStore, selectFitScale, selectActiveImage } from '../../state/canvasStore'
 import { PanelSection } from '../ui/PanelSection'
 import { ToggleButton } from '../ui/ToggleButton'
 
 // Gives fine-grained control over scale toggles + center snapping + reset flows.
 export const TransformPanel = () => {
-  const activeImage = useCanvasStore(selectActiveImage)
-  const resetTransform = useCanvasStore((state) => state.resetTransform)
-  const centerSnap = useCanvasStore((state) => state.centerSnap)
-  const setCenterSnap = useCanvasStore((state) => state.setCenterSnap)
-  const previewSize = useCanvasStore((state) => state.previewSize)
-  const updateTransform = useCanvasStore((state) => state.updateTransform)
-  const fitImageToCanvas = useCanvasStore((state) => state.fitImageToCanvas)
+  // Consolidated store subscription - single selector reduces re-renders
+  // Using useShallow for shallow comparison to prevent unnecessary re-renders
+  const {
+    activeImage,
+    fitScale,
+    resetTransform,
+    centerSnap,
+    setCenterSnap,
+    previewSize,
+    updateTransform,
+    fitImageToCanvas,
+  } = useCanvasStore(
+    useShallow((state) => ({
+      activeImage: selectActiveImage(state),
+      fitScale: selectFitScale(state),
+      resetTransform: state.resetTransform,
+      centerSnap: state.centerSnap,
+      setCenterSnap: state.setCenterSnap,
+      previewSize: state.previewSize,
+      updateTransform: state.updateTransform,
+      fitImageToCanvas: state.fitImageToCanvas,
+    }))
+  )
 
   // Get transform from active image
   const transform = activeImage?.transform ?? { x: 0, y: 0, scale: 1 }
-
-  // Use the store's selector for fit scale (single source of truth)
-  const fitScale = useCanvasStore(selectFitScale)
 
   const scalePercent = useMemo(() => {
     if (!fitScale || fitScale === 0) return 0
