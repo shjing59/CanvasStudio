@@ -35,7 +35,9 @@ export const Workspace = ({ children }: WorkspaceProps) => {
       className="fixed inset-0 flex items-center justify-center bg-gray-200 overflow-hidden"
       style={
         isMobile
-          ? { paddingBottom: '64px' } // Account for mobile nav bar
+          ? { 
+              paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))' // Account for mobile nav bar + safe area
+            }
           : {}
       }
     >

@@ -17,16 +17,35 @@ export function useResponsive() {
   })
 
   useEffect(() => {
+    let ticking = false
+    let rafId: number | null = null
+
     const updateSize = () => {
       setWindowSize({
         width: window.innerWidth,
         height: window.innerHeight,
       })
+      ticking = false
     }
 
+    const handleResize = () => {
+      if (!ticking) {
+        ticking = true
+        // Use requestAnimationFrame to batch resize updates
+        rafId = requestAnimationFrame(updateSize)
+      }
+    }
+
+    // Initial size
     updateSize()
-    window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
+    
+    window.addEventListener('resize', handleResize, { passive: true })
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+    }
   }, [])
 
   const isMobile = windowSize.width < 768

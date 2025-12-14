@@ -51,7 +51,13 @@ export const MobileNav = () => {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-canvas-control/95 backdrop-blur border-t border-white/10 safe-area-inset-bottom">
+    <nav 
+      className="fixed left-0 right-0 z-50 bg-canvas-control/95 backdrop-blur border-t border-white/10"
+      style={{
+        bottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)',
+      }}
+    >
       <div className="flex justify-around items-center h-16 px-2">
         {/* Import/Close Button */}
         <button

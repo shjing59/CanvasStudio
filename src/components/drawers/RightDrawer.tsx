@@ -75,7 +75,10 @@ export const RightDrawer = () => {
         } ${
           rightDrawerOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
-        style={isMobile ? { height: 'calc(100vh - 64px)', bottom: '64px' } : undefined}
+        style={isMobile ? { 
+          height: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))', 
+          bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))' 
+        } : undefined}
       >
         <div className="p-4 lg:p-6 min-w-0">
           <ControlPanel />

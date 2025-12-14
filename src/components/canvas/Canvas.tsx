@@ -35,14 +35,34 @@ export const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({ aspectRatio, ch
   useImperativeHandle(ref, () => canvasRef.current as HTMLDivElement)
 
   // Keep local windowSize in sync as fallback (responsive hook handles primary updates)
+  // Note: We still need this for initial render before useResponsive updates
   useEffect(() => {
     const updateSize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     }
     // Update immediately in case window size changed
     updateSize()
-    window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
+    // Use passive listener and throttle via requestAnimationFrame
+    let rafId: number | null = null
+    let ticking = false
+    
+    const handleResize = () => {
+      if (!ticking) {
+        ticking = true
+        rafId = requestAnimationFrame(() => {
+          updateSize()
+          ticking = false
+        })
+      }
+    }
+    
+    window.addEventListener('resize', handleResize, { passive: true })
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+    }
   }, [])
 
   const canvasSize = useMemo(() => {

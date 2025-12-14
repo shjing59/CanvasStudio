@@ -114,36 +114,56 @@ export const ImageLayer = ({ image, transform, crop, filter, canvasWidth, canvas
   )
 
   // Render to canvas when filter is present
+  // Use requestAnimationFrame to batch updates and prevent lag during resize
   useEffect(() => {
     if (!filter?.lutData || !canvasRef.current) return
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d', { colorSpace: 'srgb' })
-    if (!ctx) return
+    let rafId: number | null = null
+    let cancelled = false
 
-    // Set canvas size to match container
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = canvasWidth * dpr
-    canvas.height = canvasHeight * dpr
-    canvas.style.width = `${canvasWidth}px`
-    canvas.style.height = `${canvasHeight}px`
-    ctx.scale(dpr, dpr)
+    const render = () => {
+      if (cancelled) return
+      
+      const canvas = canvasRef.current
+      if (!canvas) return
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+      const ctx = canvas.getContext('2d', { colorSpace: 'srgb' })
+      if (!ctx) return
 
-    // Render scene with filter
-    renderScene({
-      ctx,
-      width: canvasWidth,
-      height: canvasHeight,
-      background,
-      transform,
-      crop: disableCropClip ? null : crop,
-      filter,
-      image,
-      borders: { top: 0, bottom: 0 },
-    })
+      // Set canvas size to match container
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = canvasWidth * dpr
+      canvas.height = canvasHeight * dpr
+      canvas.style.width = `${canvasWidth}px`
+      canvas.style.height = `${canvasHeight}px`
+      ctx.scale(dpr, dpr)
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+
+      // Render scene with filter
+      renderScene({
+        ctx,
+        width: canvasWidth,
+        height: canvasHeight,
+        background,
+        transform,
+        crop: disableCropClip ? null : crop,
+        filter,
+        image,
+        borders: { top: 0, bottom: 0 },
+      })
+    }
+
+    // Schedule render on next frame to batch rapid updates (e.g., during resize)
+    rafId = requestAnimationFrame(render)
+
+    return () => {
+      cancelled = true
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+    }
   }, [image, transform, crop, filter, canvasWidth, canvasHeight, background, disableCropClip])
 
   // Don't render if canvas dimensions aren't available or we don't have image dimensions
