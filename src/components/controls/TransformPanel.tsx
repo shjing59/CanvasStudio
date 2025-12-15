@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useCanvasStore, selectFitScale, selectActiveImage } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { PanelSection } from '../ui/PanelSection'
 import { ToggleButton } from '../ui/ToggleButton'
 
 // Gives fine-grained control over scale toggles + center snapping + reset flows.
 export const TransformPanel = () => {
+  const { isMobile } = useResponsive()
   // Consolidated store subscription - single selector reduces re-renders
   // Using useShallow for shallow comparison to prevent unnecessary re-renders
   const {
@@ -70,11 +72,8 @@ export const TransformPanel = () => {
 
   const hasActiveImage = !!activeImage
 
-  return (
-    <PanelSection
-      title="2. Position & Scale"
-      description="Drag to move. Wheel, pinch, or Shift + Drag to scale."
-    >
+  const content = (
+    <>
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>Scale</span>
@@ -175,6 +174,19 @@ export const TransformPanel = () => {
           Reset
         </button>
       </div>
+    </>
+  )
+
+  if (isMobile) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <PanelSection
+      title="2. Position & Scale"
+      description="Drag to move. Wheel, pinch, or Shift + Drag to scale."
+    >
+      {content}
     </PanelSection>
   )
 }

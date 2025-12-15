@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react'
 import { RATIO_PRESETS } from '../../lib/canvas/ratios'
 import { CUSTOM_RATIO } from '../../lib/canvas/constants'
 import { useCanvasStore, selectActiveImage } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { PanelSection } from '../ui/PanelSection'
 import { PresetButtons } from '../ui/PresetButtons'
 
@@ -15,6 +16,7 @@ function validateRatioValue(value: number): number {
 
 // Switches between preset, original, and custom canvas ratios.
 export const RatioPanel = () => {
+  const { isMobile } = useResponsive()
   const ratioId = useCanvasStore((state) => state.ratioId)
   const activeImage = useCanvasStore(selectActiveImage)
   const setRatio = useCanvasStore((state) => state.setRatio)
@@ -46,11 +48,8 @@ export const RatioPanel = () => {
     [customRatio.width, setCustomRatio]
   )
 
-  return (
-    <PanelSection
-      title="1. Canvas Ratio"
-      description="Switch instantly while preserving layout"
-    >
+  const content = (
+    <>
       <div className="min-w-0 max-w-full">
         <PresetButtons
           presets={ratioButtons}
@@ -82,9 +81,24 @@ export const RatioPanel = () => {
           />
         </label>
       </div>
-      <p className="text-xs text-slate-500 break-words">
-        Custom values auto-apply once both width and height are defined (range: {CUSTOM_RATIO.MIN}-{CUSTOM_RATIO.MAX}).
-      </p>
+      {!isMobile && (
+        <p className="text-xs text-slate-500 break-words">
+          Custom values auto-apply once both width and height are defined (range: {CUSTOM_RATIO.MIN}-{CUSTOM_RATIO.MAX}).
+        </p>
+      )}
+    </>
+  )
+
+  if (isMobile) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <PanelSection
+      title="1. Canvas Ratio"
+      description="Switch instantly while preserving layout"
+    >
+      {content}
     </PanelSection>
   )
 }

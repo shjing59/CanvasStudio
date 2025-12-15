@@ -1,5 +1,4 @@
 import { BackgroundPanel } from './BackgroundPanel'
-import { BorderPanel } from './BorderPanel'
 import { CropPanel } from './CropPanel'
 import { FilterPanel } from './FilterPanel'
 import { RatioPanel } from './RatioPanel'
@@ -14,7 +13,6 @@ export const ControlPanel = () => (
     <TransformPanel />
     <FilterPanel />
     <BackgroundPanel />
-    <BorderPanel />
   </aside>
 )
 

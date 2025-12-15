@@ -1,4 +1,5 @@
 import { useCanvasStore, selectActiveImage } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { PanelSection } from '../ui/PanelSection'
 import { CROP_ASPECT_PRESETS, computeCropFromAspect, createDefaultCrop } from '../../lib/canvas/crop'
 import type { CropAspectPresetId } from '../../lib/canvas/crop'
@@ -12,6 +13,7 @@ import type { CropAspectPresetId } from '../../lib/canvas/crop'
  * - Reset crop to full image
  */
 export const CropPanel = () => {
+  const { isMobile } = useResponsive()
   const activeImage = useCanvasStore(selectActiveImage)
   const cropMode = useCanvasStore((state) => state.cropMode)
   const toggleCropMode = useCanvasStore((state) => state.toggleCropMode)
@@ -73,11 +75,8 @@ export const CropPanel = () => {
 
   const hasImage = !!activeImage
 
-  return (
-    <PanelSection
-      title="Crop"
-      description={cropMode ? 'Adjust the crop region' : 'Crop your image to a specific area'}
-    >
+  const content = (
+    <>
       {!cropMode ? (
         // Not in crop mode - show enter button
         <button
@@ -171,6 +170,19 @@ export const CropPanel = () => {
           </button>
         </div>
       )}
+    </>
+  )
+
+  if (isMobile) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <PanelSection
+      title="Crop"
+      description={cropMode ? 'Adjust the crop region' : 'Crop your image to a specific area'}
+    >
+      {content}
     </PanelSection>
   )
 }

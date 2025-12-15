@@ -36,6 +36,8 @@ interface LayoutState {
   leftDrawerOpen: boolean
   /** Whether the right drawer (Controls) is open */
   rightDrawerOpen: boolean
+  /** Whether the mobile bottom toolbar (editing controls) is open */
+  mobileToolbarOpen: boolean
 }
 
 // ============================================================================
@@ -107,6 +109,8 @@ export interface CanvasStoreState extends CanvasSettings, ImageQueueState, Layou
   toggleRightDrawer: () => void
   setLeftDrawerOpen: (open: boolean) => void
   setRightDrawerOpen: (open: boolean) => void
+  toggleMobileToolbar: () => void
+  setMobileToolbarOpen: (open: boolean) => void
 
   // Settings actions
   setCenterSnap: (value: boolean) => void
@@ -234,6 +238,7 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
   // Layout state
   leftDrawerOpen: false,
   rightDrawerOpen: false,
+  mobileToolbarOpen: false,
 
   // Image queue state
   images: [],
@@ -779,6 +784,14 @@ export const useCanvasStore = create<CanvasStoreState>((set, get) => ({
 
   setRightDrawerOpen(open) {
     set({ rightDrawerOpen: open })
+  },
+
+  toggleMobileToolbar() {
+    set((state) => ({ mobileToolbarOpen: !state.mobileToolbarOpen }))
+  },
+
+  setMobileToolbarOpen(open) {
+    set({ mobileToolbarOpen: open })
   },
 
   // ========================================================================

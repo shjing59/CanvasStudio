@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react'
 import { useCanvasStore } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { PanelSection } from '../ui/PanelSection'
+import { FilterPreview } from '../filters/FilterPreview'
 import { BUILTIN_FILTERS } from '../../lib/filters/presets'
 
 /**
  * Panel for applying LUT filters to images
  */
 export const FilterPanel = () => {
+  const { isMobile } = useResponsive()
   const activeImage = useCanvasStore((state) => state.getActiveImage())
   const setFilter = useCanvasStore((state) => state.setFilter)
   const setFilterIntensity = useCanvasStore((state) => state.setFilterIntensity)
@@ -65,6 +68,87 @@ export const FilterPanel = () => {
     setFilterIntensity(value)
   }
 
+  // Mobile layout: horizontal scrollable filter previews
+  if (isMobile) {
+    return (
+      <div className="space-y-4">
+        {/* Filter Previews - Horizontal Scrollable */}
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          {/* None Filter */}
+          <FilterPreview
+            filterId={null}
+            filterName="None"
+            isActive={currentFilterId === null}
+            onClick={() => handleFilterSelect(null)}
+          />
+          {/* Built-in Filters */}
+          {BUILTIN_FILTERS.map((filter) => (
+            <FilterPreview
+              key={filter.id}
+              filterId={filter.id}
+              filterName={filter.name}
+              isActive={currentFilterId === filter.id}
+              onClick={() => handleFilterSelect(filter.id)}
+            />
+          ))}
+        </div>
+
+        {/* Intensity Slider */}
+        {currentFilterId && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-400">Intensity</label>
+              <span className="text-xs text-slate-300">
+                {Math.round(currentIntensity * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={currentIntensity}
+              onChange={(e) => handleIntensityChange(parseFloat(e.target.value))}
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-white/10 accent-white"
+              style={{
+                background: `linear-gradient(to right, white 0%, white ${currentIntensity * 100}%, rgba(255,255,255,0.1) ${currentIntensity * 100}%, rgba(255,255,255,0.1) 100%)`,
+              }}
+            />
+          </div>
+        )}
+
+        {/* File Upload */}
+        <div className="space-y-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".cube"
+            onChange={handleFileUpload}
+            disabled={isLoading}
+            className="hidden"
+            id="filter-file-input-mobile"
+          />
+          <label
+            htmlFor="filter-file-input-mobile"
+            className={`block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center text-sm text-white cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isLoading ? 'Loading...' : 'Upload Custom Filter'}
+          </label>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            {error}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Desktop layout: original dropdown + controls
   if (!activeImage) {
     return (
       <PanelSection title="Filters" description="Import an image to apply filters">

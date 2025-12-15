@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Bottom Toolbar Design Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Canvas/Workspace Area */
+        .workspace {
+            flex: 1;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .workspace::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .canvas-preview {
+            width: 90%;
+            max-width: 400px;
+            aspect-ratio: 4/3;
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .canvas-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        /* Bottom Toolbar */
+        .bottom-toolbar {
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Toolbar Tabs */
+        .toolbar-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .toolbar-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-button {
+            padding: 8px 16px;
+            border: none;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.6);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .tab-button.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-button:active {
+            transform: scale(0.95);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            min-height: 120px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Filter Preview Section */
+        .filter-scroll {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 8px 0;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .filter-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .filter-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .filter-item {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .filter-item:active {
+            transform: scale(0.95);
+        }
+
+        .filter-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            background: #1a1a1a;
+        }
+
+        .filter-preview.active {
+            border-color: #fff;
+            border-width: 3px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+
+        .filter-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .filter-preview::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* Filter color overlays to simulate different filters */
+        .filter-preview[data-filter="none"]::after {
+            display: none;
+        }
+
+        .filter-preview[data-filter="eterna"]::after {
+            background: linear-gradient(135deg, rgba(255, 200, 100, 0.3), rgba(100, 150, 255, 0.2));
+        }
+
+        .filter-preview[data-filter="flog"]::after {
+            background: linear-gradient(135deg, rgba(150, 200, 255, 0.25), rgba(255, 150, 100, 0.2));
+        }
+
+        .filter-preview[data-filter="wdr"]::after {
+            background: linear-gradient(135deg, rgba(200, 255, 200, 0.2), rgba(255, 200, 150, 0.25));
+        }
+
+        .filter-preview[data-filter="eterna-bb"]::after {
+            background: linear-gradient(135deg, rgba(255, 180, 120, 0.3), rgba(120, 180, 255, 0.2));
+        }
+
+        .filter-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            max-width: 80px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .filter-preview.active + .filter-label {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        /* Ratio/Crop/Transform Controls */
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .control-button {
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .control-button:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-button.active {
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-icon {
+            width: 24px;
+            height: 24px;
+            opacity: 0.8;
+        }
+
+        /* Background/Border Controls */
+        .color-picker-grid {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 8px 0;
+        }
+
+        .color-swatch {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .color-swatch.active {
+            border-color: #fff;
+            border-width: 3px;
+            transform: scale(1.1);
+        }
+
+        .color-swatch:active {
+            transform: scale(0.95);
+        }
+
+        /* Slider Controls */
+        .slider-control {
+            padding: 12px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Preset Buttons */
+        .preset-buttons {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 8px 0;
+        }
+
+        .preset-button {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-button.active {
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .preset-button:active {
+            transform: scale(0.95);
+        }
+
+        /* Instructions */
+        .instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+            line-height: 1.6;
+            z-index: 100;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .instructions h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            margin-bottom: 4px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .instructions li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .close-instructions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 20px;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .close-instructions:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions" id="instructions">
+        <button class="close-instructions" onclick="document.getElementById('instructions').style.display='none'">×</button>
+        <h3>Mobile Bottom Toolbar Design Preview</h3>
+        <ul>
+            <li>All features from right drawer are in bottom toolbar</li>
+            <li>Filters shown as horizontal scrollable circles with previews</li>
+            <li>Switch between tabs to access different feature groups</li>
+            <li>Similar to VSCO, Lightroom Mobile, and other photo apps</li>
+        </ul>
+    </div>
+
+    <div class="workspace">
+        <div class="canvas-preview">
+            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop" alt="Sample photo">
+        </div>
+    </div>
+
+    <div class="bottom-toolbar">
+        <div class="toolbar-tabs">
+            <button class="tab-button active" onclick="switchTab('filters')">Filters</button>
+            <button class="tab-button" onclick="switchTab('ratio')">Ratio</button>
+            <button class="tab-button" onclick="switchTab('crop')">Crop</button>
+            <button class="tab-button" onclick="switchTab('transform')">Transform</button>
+            <button class="tab-button" onclick="switchTab('background')">Background</button>
+            <button class="tab-button" onclick="switchTab('border')">Border</button>
+        </div>
+
+        <!-- Filters Tab -->
+        <div id="filters" class="tab-content active">
+            <div class="filter-scroll">
+                <div class="filter-item" onclick="selectFilter(this, 'none')">
+                    <div class="filter-preview active" data-filter="none">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="None">
+                    </div>
+                    <span class="filter-label">None</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xpro3-eterna')">
+                    <div class="filter-preview" data-filter="eterna">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-Pro3 ETERNA">
+                    </div>
+                    <span class="filter-label">X-Pro3 ETERNA</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xpro3-flog')">
+                    <div class="filter-preview" data-filter="flog">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-Pro3 F-Log">
+                    </div>
+                    <span class="filter-label">X-Pro3 F-Log</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xpro3-wdr')">
+                    <div class="filter-preview" data-filter="wdr">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-Pro3 WDR">
+                    </div>
+                    <span class="filter-label">X-Pro3 WDR</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xt30iii-flog-eterna')">
+                    <div class="filter-preview" data-filter="eterna">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-T30III F-Log ETERNA">
+                    </div>
+                    <span class="filter-label">X-T30III ETERNA</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xt30iii-flog-eterna-bb')">
+                    <div class="filter-preview" data-filter="eterna-bb">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-T30III ETERNA-BB">
+                    </div>
+                    <span class="filter-label">X-T30III ETERNA-BB</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xt30iii-flog-flog')">
+                    <div class="filter-preview" data-filter="flog">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-T30III F-Log">
+                    </div>
+                    <span class="filter-label">X-T30III F-Log</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xt30iii-flog-wdr')">
+                    <div class="filter-preview" data-filter="wdr">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-T30III WDR">
+                    </div>
+                    <span class="filter-label">X-T30III WDR</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xt30iii-flog2-eterna')">
+                    <div class="filter-preview" data-filter="eterna">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-T30III F-Log2 ETERNA">
+                    </div>
+                    <span class="filter-label">F-Log2 ETERNA</span>
+                </div>
+                <div class="filter-item" onclick="selectFilter(this, 'xt30iii-flog2-wdr')">
+                    <div class="filter-preview" data-filter="wdr">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=160&h=160&fit=crop" alt="X-T30III F-Log2 WDR">
+                    </div>
+                    <span class="filter-label">F-Log2 WDR</span>
+                </div>
+            </div>
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Intensity</span>
+                    <span id="intensity-value">100%</span>
+                </div>
+                <input type="range" class="slider" min="0" max="100" value="100" oninput="updateIntensity(this.value)">
+            </div>
+        </div>
+
+        <!-- Ratio Tab -->
+        <div id="ratio" class="tab-content">
+            <div class="preset-buttons">
+                <button class="preset-button active">1:1</button>
+                <button class="preset-button">3:2</button>
+                <button class="preset-button">4:3</button>
+                <button class="preset-button">16:9</button>
+                <button class="preset-button">9:16</button>
+                <button class="preset-button">Original</button>
+            </div>
+        </div>
+
+        <!-- Crop Tab -->
+        <div id="crop" class="tab-content">
+            <div class="preset-buttons">
+                <button class="preset-button active">Free</button>
+                <button class="preset-button">1:1</button>
+                <button class="preset-button">3:2</button>
+                <button class="preset-button">4:3</button>
+                <button class="preset-button">16:9</button>
+                <button class="preset-button">Original</button>
+            </div>
+        </div>
+
+        <!-- Transform Tab -->
+        <div id="transform" class="tab-content">
+            <div class="control-grid">
+                <button class="control-button">
+                    <svg class="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span>Rotate</span>
+                </button>
+                <button class="control-button">
+                    <svg class="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                    </svg>
+                    <span>Flip</span>
+                </button>
+                <button class="control-button">
+                    <svg class="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span>Scale</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Background Tab -->
+        <div id="background" class="tab-content">
+            <div class="color-picker-grid">
+                <div class="color-swatch active" style="background: #ffffff;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: #F2F0EF;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: #000000;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: #f5f5f5;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: #1a1a1a;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;" onclick="selectColor(this)"></div>
+            </div>
+        </div>
+
+        <!-- Border Tab -->
+        <div id="border" class="tab-content">
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Width</span>
+                    <span>0px</span>
+                </div>
+                <input type="range" class="slider" min="0" max="50" value="0">
+            </div>
+            <div class="color-picker-grid">
+                <div class="color-swatch active" style="background: #ffffff;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: #000000;" onclick="selectColor(this)"></div>
+                <div class="color-swatch" style="background: #f5f5f5;" onclick="selectColor(this)"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        function selectFilter(element, filterId) {
+            // Remove active class from all filters
+            document.querySelectorAll('.filter-preview').forEach(preview => {
+                preview.classList.remove('active');
+            });
+            document.querySelectorAll('.filter-label').forEach(label => {
+                label.classList.remove('active');
+            });
+            
+            // Add active class to selected filter
+            element.querySelector('.filter-preview').classList.add('active');
+            element.querySelector('.filter-label').classList.add('active');
+        }
+
+        function selectColor(element) {
+            // Remove active class from all color swatches
+            element.parentElement.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.classList.remove('active');
+            });
+            
+            // Add active class to selected swatch
+            element.classList.add('active');
+        }
+
+        function updateIntensity(value) {
+            document.getElementById('intensity-value').textContent = value + '%';
+        }
+
+        // Add click handlers for preset buttons
+        document.querySelectorAll('.preset-button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.parentElement.querySelectorAll('.preset-button').forEach(b => {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,9 +1,11 @@
 import { useCanvasStore } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 
 type BorderKey = 'top' | 'bottom'
 
 // Implements the bespoke top/bottom border workflow outlined in the brief.
 export const BorderPanel = () => {
+  const { isMobile } = useResponsive()
   const borders = useCanvasStore((state) => state.borders)
   const setBorders = useCanvasStore((state) => state.setBorders)
 
@@ -19,14 +21,8 @@ export const BorderPanel = () => {
     })
   }
 
-  return (
-    <section className="space-y-3 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200 min-w-0">
-      <header className="min-w-0">
-        <p className="text-base font-semibold text-white break-words">3. Top / Bottom Borders</p>
-        <p className="text-xs text-slate-400 break-words">
-          Frame-room auto scales while preserving your custom positioning.
-        </p>
-      </header>
+  const content = (
+    <>
       <div className="grid grid-cols-2 gap-3 text-xs min-w-0">
         <BorderField
           label="Top"
@@ -43,9 +39,27 @@ export const BorderPanel = () => {
           onUnitChange={(unit) => handleUnitChange('bottom', unit)}
         />
       </div>
-      <p className="text-xs text-slate-500 break-words">
-        Auto-scale keeps object-fit cover intact. Toggle Auto Fit to recenter between borders.
-      </p>
+      {!isMobile && (
+        <p className="text-xs text-slate-500 break-words">
+          Auto-scale keeps object-fit cover intact. Toggle Auto Fit to recenter between borders.
+        </p>
+      )}
+    </>
+  )
+
+  if (isMobile) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <section className="space-y-3 rounded-2xl border border-white/10 bg-canvas-control/80 backdrop-blur p-4 text-sm text-slate-200 min-w-0">
+      <header className="min-w-0">
+        <p className="text-base font-semibold text-white break-words">3. Top / Bottom Borders</p>
+        <p className="text-xs text-slate-400 break-words">
+          Frame-room auto scales while preserving your custom positioning.
+        </p>
+      </header>
+      {content}
     </section>
   )
 }

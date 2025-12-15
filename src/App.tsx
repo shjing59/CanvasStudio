@@ -4,6 +4,7 @@ import { LeftDrawer } from './components/drawers/LeftDrawer'
 import { RightDrawer } from './components/drawers/RightDrawer'
 import { CanvasStage } from './components/canvas/CanvasStage'
 import { MobileNav } from './components/navigation/MobileNav'
+import { MobileBottomToolbar } from './components/navigation/MobileBottomToolbar'
 
 function App() {
   const { isMobile } = useResponsive()
@@ -33,6 +34,9 @@ function App() {
       
       {/* Mobile bottom navigation */}
       <MobileNav />
+      
+      {/* Mobile bottom toolbar (replaces right drawer on mobile) */}
+      <MobileBottomToolbar />
     </div>
   )
 }

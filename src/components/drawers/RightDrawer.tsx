@@ -36,11 +36,15 @@ export const RightDrawer = () => {
     }
   }, [isMobile, rightDrawerOpen, leftDrawerOpen])
 
+  // Hide right drawer on mobile (replaced by bottom toolbar)
+  if (isMobile) {
+    return null
+  }
+
   return (
     <>
-      {/* Toggle button on left edge - hidden on mobile (will use bottom nav) */}
-      {!isMobile && (
-        <button
+      {/* Toggle button on left edge */}
+      <button
           type="button"
           onClick={handleToggle}
           className={`fixed top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-8 h-16 rounded-l-lg bg-canvas-control/80 backdrop-blur border border-r-0 border-white/10 text-white/60 hover:text-white hover:bg-canvas-control transition-all ${
@@ -57,28 +61,12 @@ export const RightDrawer = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-      )}
-
-      {/* Backdrop overlay for mobile */}
-      {isMobile && rightDrawerOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={handleToggle}
-          aria-hidden="true"
-        />
-      )}
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 bg-canvas-control/90 backdrop-blur border-l border-white/10 transition-transform duration-300 ease-in-out overflow-y-auto overflow-x-hidden ${
-          isMobile ? 'w-full z-[60]' : 'z-20 w-[350px] h-screen'
-        } ${
+        className={`fixed right-0 top-0 bg-canvas-control/90 backdrop-blur border-l border-white/10 transition-transform duration-300 ease-in-out overflow-y-auto overflow-x-hidden z-20 w-[350px] h-screen ${
           rightDrawerOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
-        style={isMobile ? { 
-          height: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))', 
-          bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))' 
-        } : undefined}
       >
         <div className="p-4 lg:p-6 min-w-0">
           <ControlPanel />

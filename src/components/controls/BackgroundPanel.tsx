@@ -1,18 +1,17 @@
 import { useCanvasStore } from '../../state/canvasStore'
+import { useResponsive } from '../../hooks/useResponsive'
 import { PanelSection } from '../ui/PanelSection'
 import { PresetButtons } from '../ui/PresetButtons'
 import { BACKGROUND_COLORS } from '../../constants/presets'
 
 // Panel for selecting canvas background color
 export const BackgroundPanel = () => {
+  const { isMobile } = useResponsive()
   const background = useCanvasStore((state) => state.background)
   const setBackground = useCanvasStore((state) => state.setBackground)
 
-  return (
-    <PanelSection 
-      title="Canvas Background" 
-      description="Choose the background color for your canvas"
-    >
+  const content = (
+    <>
       <div className="flex items-center gap-3 min-w-0">
         <label className="flex items-center gap-2 text-xs flex-shrink-0">
           <span className="text-slate-400 whitespace-nowrap">Color</span>
@@ -41,6 +40,19 @@ export const BackgroundPanel = () => {
           onChange={setBackground}
         />
       </div>
+    </>
+  )
+
+  if (isMobile) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return (
+    <PanelSection 
+      title="Canvas Background" 
+      description="Choose the background color for your canvas"
+    >
+      {content}
     </PanelSection>
   )
 }

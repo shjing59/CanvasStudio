@@ -9,11 +9,11 @@ import { useExportImage } from '../../hooks/useExportImage'
 export const MobileNav = () => {
   const { isMobile } = useResponsive()
   const leftDrawerOpen = useCanvasStore((state) => state.leftDrawerOpen)
-  const rightDrawerOpen = useCanvasStore((state) => state.rightDrawerOpen)
+  const mobileToolbarOpen = useCanvasStore((state) => state.mobileToolbarOpen)
   const toggleLeftDrawer = useCanvasStore((state) => state.toggleLeftDrawer)
-  const toggleRightDrawer = useCanvasStore((state) => state.toggleRightDrawer)
-  const setRightDrawerOpen = useCanvasStore((state) => state.setRightDrawerOpen)
+  const toggleMobileToolbar = useCanvasStore((state) => state.toggleMobileToolbar)
   const setLeftDrawerOpen = useCanvasStore((state) => state.setLeftDrawerOpen)
+  const setMobileToolbarOpen = useCanvasStore((state) => state.setMobileToolbarOpen)
   const images = useCanvasStore((state) => state.images)
   const { exportImage, exportAllImages, isExporting, canShare } = useExportImage()
 
@@ -25,23 +25,25 @@ export const MobileNav = () => {
   const isReady = hasImages && !isExporting
 
   const handleImportClick = () => {
-    if (rightDrawerOpen) {
-      setRightDrawerOpen(false)
+    // Close toolbar when opening import drawer
+    if (mobileToolbarOpen) {
+      setMobileToolbarOpen(false)
     }
     toggleLeftDrawer()
   }
 
-  const handleControlsClick = () => {
+  const handleEditingClick = () => {
+    // Close import drawer when opening editing toolbar
     if (leftDrawerOpen) {
       setLeftDrawerOpen(false)
     }
-    toggleRightDrawer()
+    toggleMobileToolbar()
   }
 
   const handleExportClick = async () => {
-    // Close any open drawers
+    // Close any open drawers/toolbar
     if (leftDrawerOpen) setLeftDrawerOpen(false)
-    if (rightDrawerOpen) setRightDrawerOpen(false)
+    if (mobileToolbarOpen) setMobileToolbarOpen(false)
 
     if (hasMultipleImages) {
       await exportAllImages()
@@ -107,18 +109,18 @@ export const MobileNav = () => {
           )}
         </button>
 
-        {/* Controls/Close Button */}
+        {/* Editing/Close Button */}
         <button
           type="button"
-          onClick={handleControlsClick}
+          onClick={handleEditingClick}
           className={`flex flex-col items-center justify-center gap-1 min-w-[60px] h-12 rounded-lg transition-colors ${
-            rightDrawerOpen
+            mobileToolbarOpen
               ? 'bg-white/10 text-white'
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
-          aria-label={rightDrawerOpen ? 'Close controls panel' : 'Canvas controls'}
+          aria-label={mobileToolbarOpen ? 'Close editing panel' : 'Open editing panel'}
         >
-          {rightDrawerOpen ? (
+          {mobileToolbarOpen ? (
             <>
               <svg
                 className="w-5 h-5"
@@ -150,7 +152,7 @@ export const MobileNav = () => {
                   d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
                 />
               </svg>
-              <span className="text-[10px] font-medium">Controls</span>
+              <span className="text-[10px] font-medium">Editing</span>
             </>
           )}
         </button>
