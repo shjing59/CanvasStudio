@@ -30,7 +30,7 @@ const TABS: Tab[] = [
 export const MobileBottomToolbar = () => {
   const { isMobile } = useResponsive()
   const mobileToolbarOpen = useCanvasStore((state) => state.mobileToolbarOpen)
-  const [activeTab, setActiveTab] = useState<TabId>('filters')
+  const [activeTab, setActiveTab] = useState<TabId>('ratio')
 
   // Don't render on desktop
   if (!isMobile) return null

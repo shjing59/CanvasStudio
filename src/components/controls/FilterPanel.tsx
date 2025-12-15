@@ -91,6 +91,51 @@ export const FilterPanel = () => {
               onClick={() => handleFilterSelect(filter.id)}
             />
           ))}
+
+          {/* Upload Custom Filter - as circular item at the end */}
+          <div className="flex flex-col items-center gap-2 flex-shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".cube"
+              onChange={handleFileUpload}
+              disabled={isLoading}
+              className="hidden"
+              id="filter-file-input-mobile"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (!isLoading && fileInputRef.current) {
+                  fileInputRef.current.click()
+                }
+              }}
+              className="w-20 h-20 rounded-full border-2 border-white/20 flex items-center justify-center bg-white/5 text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  {/* Upload: arrow pointing UP into a tray */}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 17v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 3l-4 4m4-4l4 4m-4-4v11"
+                  />
+                </svg>
+              )}
+            </button>
+            <span className="text-[11px] text-center max-w-[80px] truncate text-slate-300">
+              {isLoading ? 'Loading…' : 'Upload'}
+            </span>
+          </div>
         </div>
 
         {/* Intensity Slider */}
@@ -116,27 +161,6 @@ export const FilterPanel = () => {
             />
           </div>
         )}
-
-        {/* File Upload */}
-        <div className="space-y-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".cube"
-            onChange={handleFileUpload}
-            disabled={isLoading}
-            className="hidden"
-            id="filter-file-input-mobile"
-          />
-          <label
-            htmlFor="filter-file-input-mobile"
-            className={`block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center text-sm text-white cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isLoading ? 'Loading...' : 'Upload Custom Filter'}
-          </label>
-        </div>
 
         {/* Error Message */}
         {error && (
